@@ -11,20 +11,21 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
 
   <header class="site-header">
     <div class="header-inner">
       <a href="index.html" class="brand">
-        <img src="images/logo.png" alt="Raven Racing logo" class="brand-logo">
+        <img src="images/logoRound.png" alt="" class="brand-logo">
         <span class="brand-text">
           <span class="brand-name">RAVEN <em>RACING</em></span>
           <span class="brand-tagline">Design &bull; Build &bull; Race</span>
         </span>
       </a>
-      <button class="menu-button" aria-label="Toggle navigation" aria-expanded="false">
+      <button type="button" class="menu-button" aria-label="Main navigation" aria-controls="primary-navigation" aria-expanded="false" hidden>
         <span></span><span></span><span></span>
       </button>
-      <nav class="nav-links">
+      <nav id="primary-navigation" class="nav-links" aria-label="Main">
         <a href="index.html" aria-current="page">Home</a>
         <a href="content/about/about.html">About</a>
         <a href="content/students/students.html">Students</a>
@@ -35,11 +36,11 @@
     </div>
   </header>
 
-  <main>
+  <main id="main-content" tabindex="-1">
 
     <section class="hero">
       <div class="container hero-content">
-        <img src="images/logo.png" alt="Raven Racing crest" class="hero-logo">
+        <img src="images/logoRound.png" alt="Raven Racing crest" class="hero-logo">
         <span class="hero-eyebrow">The SFEM Academy</span>
         <h1>RAVEN <em>RACING</em></h1>
         <p class="hero-tagline">Design &bull; Build &bull; Race</p>
@@ -81,17 +82,17 @@
         </div>
         <div class="grid grid-3">
           <div class="card">
-            <div class="icon">D</div>
+            <div class="icon" aria-hidden="true">D</div>
             <h3>Design</h3>
             <p>Students build the chassis, drivetrain, and electrical systems from the ground up using CAD and real-world testing.</p>
           </div>
           <div class="card">
-            <div class="icon">B</div>
+            <div class="icon" aria-hidden="true">B</div>
             <h3>Build</h3>
             <p>The team fabricates, wires, and assembles the car in the shop, solving problems together as a crew.</p>
           </div>
           <div class="card">
-            <div class="icon">R</div>
+            <div class="icon" aria-hidden="true">R</div>
             <h3>Race</h3>
             <p>Raven Racing competes on the track against other schools in the GreenPower F24 electric racing series.</p>
           </div>
@@ -112,7 +113,7 @@
   <footer class="site-footer">
     <div class="footer-inner">
       <div class="footer-brand">
-        <img src="images/logo.png" alt="Raven Racing logo" class="footer-logo">
+        <img src="images/logoRound.png" alt="" class="footer-logo">
         <p><strong>Raven Racing</strong><br>The SFEM Academy<br>GreenPower F24 Team</p>
       </div>
       <div class="footer-links">
@@ -125,7 +126,7 @@
       </div>
       <div class="footer-contact">
         <h3>Contact</h3>
-        <a href="mailto:ravenracing@sfemacademy.org">ravenracing@sfemacademy.org</a>
+        <a href="javascript:void(window.open('https://form.jotform.com/262526028046050','blank','scrollbars=yes,toolbar=no,width=700,height=500'))">ravenracing@sfemacademy.org</a>
         <a href="content/sponsors/sponsors.html">Sponsorship Inquiries</a>
       </div>
     </div>

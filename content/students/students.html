@@ -11,20 +11,21 @@
   <link rel="stylesheet" href="../../style.css">
 </head>
 <body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
 
   <header class="site-header">
     <div class="header-inner">
       <a href="../../index.html" class="brand">
-        <img src="../../images/logo.png" alt="Raven Racing logo" class="brand-logo">
+        <img src="../../images/logoRound.png" alt="" class="brand-logo">
         <span class="brand-text">
           <span class="brand-name">RAVEN <em>RACING</em></span>
           <span class="brand-tagline">Design &bull; Build &bull; Race</span>
         </span>
       </a>
-      <button class="menu-button" aria-label="Toggle navigation" aria-expanded="false">
+      <button type="button" class="menu-button" aria-label="Main navigation" aria-controls="primary-navigation" aria-expanded="false" hidden>
         <span></span><span></span><span></span>
       </button>
-      <nav class="nav-links">
+      <nav id="primary-navigation" class="nav-links" aria-label="Main">
         <a href="../../index.html">Home</a>
         <a href="../about/about.html">About</a>
         <a href="../students/students.html" aria-current="page">Students</a>
@@ -35,7 +36,7 @@
     </div>
   </header>
 
-  <main>
+  <main id="main-content" tabindex="-1">
 
     <section class="page-hero">
       <div class="container">
@@ -55,22 +56,22 @@
         <div class="grid grid-3">
           
           <div class="card">
-            <div class="icon">E</div>
+            <div class="icon" aria-hidden="true">E</div>
             <h3>Electrical</h3>
             <p>Wiring, battery management, motor controls, and telemetry.</p>
           </div>
           <div class="card">
-            <div class="icon">F</div>
+            <div class="icon" aria-hidden="true">F</div>
             <h3>Fabrication</h3>
             <p>Cutting, and assembling the car in the shop.</p>
           </div>
           <div class="card">
-            <div class="icon">R</div>
+            <div class="icon" aria-hidden="true">R</div>
             <h3>Race &amp; Pit Crew</h3>
             <p>Drivers, pit strategy, and race-day operations.</p>
           </div>
           <div class="card">
-            <div class="icon">M</div>
+            <div class="icon" aria-hidden="true">M</div>
             <h3>Marketing &amp; Ops</h3>
             <p>Sponsorships, social media, event logistics, and fundraising.</p>
           </div>
@@ -82,19 +83,19 @@
       <div class="container">
         <div class="section-head">
           <!-- <h2>The Rosters</h2> -->
-          <h1>2026-2027</h1>
+          <h2>2026–2027 Teams</h2>
           <!-- <h2>2026&ndash;27 Team</h2> -->
           <!-- <p>Placeholder roster &mdash; swap in real names, roles, and photos.</p> -->
         </div>
         <div class="grid teams-grid">
-          <summary><h2>Fall Teams</h2></summary>
+          <h3>Fall Teams</h3>
         <div class="grid grid-4">
           <div class="person-card">
             <div class="person-photo">
-              <img class="teamImage" src="/images/2627_Teams/car2049/IMG_0689.jpeg">
+              <img class="teamImage" src="../../images/2627_Teams/car2049/IMG_0689.jpeg" alt="Raven Racing team for car #2049">
             </div>
             <div class="person-info">
-              <h3>Car #2049</h3>
+              <h4>Car #2049</h4>
               <span class="person-role">Santiago</span>
               <span class="person-role">Daniel</span>
               <span class="person-role">Emi</span>
@@ -104,10 +105,10 @@
           </div>
           <div class="person-card">
             <div class="person-photo">
-              <img  class="teamImage" src="/images/2627_Teams/car2044/IMG_0697.jpeg">
+              <img  class="teamImage" src="../../images/2627_Teams/car2044/IMG_0697.jpeg" alt="Raven Racing team for car #2044">
             </div>
             <div class="person-info">
-              <h3>Car #2044</h3>
+              <h4>Car #2044</h4>
               <span class="person-role">Takia</span>
               <span class="person-role">Jacobe</span>
               <span class="person-role">Alora</span>
@@ -117,10 +118,10 @@
           </div>
           <div class="person-card">
             <div class="person-photo">
-              <img  class="teamImage" src="/images/2627_Teams/car2052/IMG_0693.jpeg">
+              <img  class="teamImage" src="../../images/2627_Teams/car2052/IMG_0693.jpeg" alt="Raven Racing team for car #2052">
             </div>
             <div class="person-info">
-              <h3>Car #2052</h3>
+              <h4>Car #2052</h4>
               <span class="person-role">Jacob</span>
               <span class="person-role">Kaelan</span>
               <span class="person-role">Courtney</span>
@@ -129,10 +130,10 @@
           </div>
           <div class="person-card">
             <div class="person-photo">
-              <img  class="teamImage" src="/images/2627_Teams/car2065/IMG_0694.jpeg">
+              <img  class="teamImage" src="../../images/2627_Teams/car2065/IMG_0694.jpeg" alt="Raven Racing team for car #2064">
             </div>
             <div class="person-info">
-              <h3>Car #2064 </h3>
+              <h4>Car #2064 </h4>
               <span class="person-role">Daniel</span>
               <span class="person-role">Matthew</span>
               <span class="person-role">Dominic</span>
@@ -141,33 +142,33 @@
             </div>
           </div>
         </div>
-          <summary><h2>Spring Teams</h2></summary>
+          <h3>Spring Teams</h3>
         <div class="grid grid-4">
           <div class="person-card">
             <div class="person-photo">Coming Soon</div>
             <div class="person-info">
-              <h3>Car #2049</h3>
+              <h4>Car #2049</h4>
               <!-- <span class="person-role">Leadership</span> -->
             </div>
           </div>
           <div class="person-card">
             <div class="person-photo">Coming Soon</div>
             <div class="person-info">
-              <h3>Car #2044</h3>
+              <h4>Car #2044</h4>
               <!-- <span class="person-role">Design</span> -->
             </div>
           </div>
           <div class="person-card">
             <div class="person-photo">Coming Soon</div>
             <div class="person-info">
-              <h3>Car #2052</h3>
+              <h4>Car #2052</h4>
               <!-- <span class="person-role">Race Crew</span> -->
             </div>
           </div>
           <div class="person-card">
             <div class="person-photo">Coming Soon</div>
             <div class="person-info">
-              <h3>Car #2064</h3>
+              <h4>Car #2064</h4>
               <!-- <span class="person-role">Electrical</span> -->
             </div>
           </div>
@@ -189,7 +190,7 @@
   <footer class="site-footer">
     <div class="footer-inner">
       <div class="footer-brand">
-        <img src="../../images/logo.png" alt="Raven Racing logo" class="footer-logo">
+        <img src="../../images/logoRound.png" alt="" class="footer-logo">
         <p><strong>Raven Racing</strong><br>The STEM Academy<br>GreenPower F24 Team</p>
       </div>
       <div class="footer-links">
@@ -203,7 +204,7 @@
       <div class="footer-contact">
         <h3>Contact</h3>
         <a href="https://www.google.com/maps/search/?api=1&amp;query=207+E+Montgomery+Crossroad+Savannah+GA+31406">207 E. Montgomery Crossroad<br>Savannah, GA 31406</a>
-        <a href="mailto:tracy.robbins@sccpss.com">tracy.robbins@sccpss.com</a>
+        <a href="javascript:void(window.open('https://form.jotform.com/262526028046050','blank','scrollbars=yes,toolbar=no,width=700,height=500'))">tracy.robbins@sccpss.com</a>
         <a href="../sponsors/sponsors.html">Sponsorship Inquiries</a>
       </div>
     </div>

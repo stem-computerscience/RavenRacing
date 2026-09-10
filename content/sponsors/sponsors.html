@@ -11,20 +11,21 @@
   <link rel="stylesheet" href="../../style.css">
 </head>
 <body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
 
   <header class="site-header">
     <div class="header-inner">
       <a href="../../index.html" class="brand">
-        <img src="../../images/ravenRacingRoundLogo.png" alt="Raven Racing logo" class="brand-logo">
+        <img src="../../images/logoRound.png" alt="" class="brand-logo">
         <span class="brand-text">
           <span class="brand-name">RAVEN <em>RACING</em></span>
           <span class="brand-tagline">Design &bull; Build &bull; Race</span>
         </span>
       </a>
-      <button class="menu-button" aria-label="Toggle navigation" aria-expanded="false">
+      <button type="button" class="menu-button" aria-label="Main navigation" aria-controls="primary-navigation" aria-expanded="false" hidden>
         <span></span><span></span><span></span>
       </button>
-      <nav class="nav-links">
+      <nav id="primary-navigation" class="nav-links" aria-label="Main">
         <a href="../../index.html">Home</a>
         <a href="../about/about.html">About</a>
         <a href="../students/students.html">Students</a>
@@ -35,7 +36,7 @@
     </div>
   </header>
 
-  <main>
+  <main id="main-content" tabindex="-1">
 
     <section class="page-hero">
       <div class="container">
@@ -105,7 +106,7 @@
               <li>Raven Racing team jersey included</li>
               <li>Reserved booth space at locally hosted race events</li>
             </ul>
-            <button type="button" data-sponsor-contact data-subject="Diamond Sponsorship Inquiry" class="btn btn-primary">Become a Sponsor</button>
+            <a href="javascript:void(window.open('https://form.jotform.com/262526607007050','blank','scrollbars=yes,toolbar=no,width=700,height=500'))" class="btn btn-primary">Become a Sponsor</a>
           </div>
           <div class="tier-card tier-card-platinum">
             <span class="tier-icon tier-icon-platinum" aria-hidden="true">
@@ -120,7 +121,7 @@
               <li>Raven Racing team jersey included</li>
               <li>Reserved booth space at locally hosted race events</li>
             </ul>
-            <button type="button" data-sponsor-contact data-subject="Platinum Sponsorship Inquiry" class="btn btn-outline-dark">Become a Sponsor</button>
+            <a href="javascript:void(window.open('https://form.jotform.com/262526607007050','blank','scrollbars=yes,toolbar=no,width=700,height=500'))" class="btn btn-outline-dark">Become a Sponsor</a>
           </div>
           <div class="tier-card tier-card-gold">
             <span class="tier-icon tier-icon-gold" aria-hidden="true">
@@ -134,7 +135,7 @@
               <li>Website listing</li>
               <li>Recognition in team videos</li>
             </ul>
-            <button type="button" data-sponsor-contact data-subject="Gold Sponsorship Inquiry" class="btn btn-outline-dark">Become a Sponsor</button>
+            <a href="javascript:void(window.open('https://form.jotform.com/262526607007050','blank','scrollbars=yes,toolbar=no,width=700,height=500'))" class="btn btn-outline-dark">Become a Sponsor</a>
           </div>
           <div class="tier-card tier-card-silver">
             <span class="tier-icon tier-icon-silver" aria-hidden="true">
@@ -147,7 +148,7 @@
               <li>Sponsor wall recognition</li>
               <li>Website listing</li>
             </ul>
-            <button type="button" data-sponsor-contact data-subject="Silver Sponsorship Inquiry" class="btn btn-outline-dark">Become a Sponsor</button>
+            <a href="javascript:void(window.open('https://form.jotform.com/262526607007050','blank','scrollbars=yes,toolbar=no,width=700,height=500'))" class="btn btn-outline-dark">Become a Sponsor</a>
           </div>
           <div class="tier-card tier-card-bronze">
             <span class="tier-icon tier-icon-bronze" aria-hidden="true">
@@ -160,7 +161,7 @@
               <li>Sponsor wall recognition</li>
               <li>Website listing</li>
             </ul>
-            <button type="button" data-sponsor-contact data-subject="Bronze Sponsorship Inquiry" class="btn btn-outline-dark">Become a Sponsor</button>
+            <a href="javascript:void(window.open('https://form.jotform.com/262526607007050','blank','scrollbars=yes,toolbar=no,width=700,height=500'))" class="btn btn-outline-dark">Become a Sponsor</a>
           </div>
           <div class="tier-card tier-card-in-kind">
             <span class="tier-icon tier-icon-in-kind" aria-hidden="true">
@@ -168,7 +169,7 @@
             </span>
             <h3 class="tier-name">In-Kind Sponsorship</h3>
             <p>Support the team with goods or services. Describe your proposed contribution on the pledge form and contact us to discuss how it can help the program.</p>
-            <button type="button" data-sponsor-contact data-subject="In-Kind Sponsorship Inquiry" class="btn btn-outline-dark">Contact Us</button>
+            <a href="javascript:void(window.open('https://form.jotform.com/262526607007050','blank','scrollbars=yes,toolbar=no,width=700,height=500'))" class="btn btn-outline-dark">Become a Sponsor</a>
           </div>
         </div>
       </div>
@@ -180,7 +181,7 @@
           <span class="eyebrow">Get Involved</span>
           <h2>Make a Pledge or Refer a Sponsor</h2>
           <p>Download the sponsorship packet for the pledge form. Include your name, business name and address, phone number, email, and selected sponsorship level.</p>
-          <a href="files/Raven_Racing_Sponsorship_2026-2027_Website.pdf" class="btn btn-outline-dark" download>Download Sponsorship Packet</a>
+          <a href="../../files/Raven_Racing_Sponsorship_2026-2027_Website.pdf" class="btn btn-outline-dark" download>Download Sponsorship Packet (PDF)</a>
         </div>
         <div class="grid grid-2">
           <div class="card">
@@ -195,7 +196,7 @@
       <div class="container">
         <h2>Interested in Sponsoring Raven Racing?</h2>
         <p>Reach out to discuss sponsorship packages and how your support helps students build real engineering skills.</p>
-        <button type="button" data-sponsor-contact class="btn btn-primary">Contact Us</button>
+        <a href="mailto:tracy.robbins@sccpss.com?subject=Sponsorship%20Inquiry" class="btn btn-primary">Contact Us</a>
       </div>
     </section>
 
@@ -204,7 +205,7 @@
   <footer class="site-footer">
     <div class="footer-inner">
       <div class="footer-brand">
-        <img src="../../images/ravenRacingRoundLogo.png" alt="Raven Racing logo" class="footer-logo">
+        <img src="../../images/logoRound.png" alt="" class="footer-logo">
         <p><strong>Raven Racing</strong><br>The STEM Academy<br>GreenPower F24 Team</p>
       </div>
       <div class="footer-links">
@@ -218,7 +219,7 @@
       <div class="footer-contact">
         <h3>Contact</h3>
         <a href="https://www.google.com/maps/search/?api=1&amp;query=207+E+Montgomery+Crossroad+Savannah+GA+31406">207 E. Montgomery Crossroad<br>Savannah, GA 31406</a>
-        <button type="button" data-sponsor-contact>Email the Team</button>
+        <a href="mailto:tracy.robbins@sccpss.com?subject=Sponsorship%20Inquiry">Email the Team</a>
         <a href="../sponsors/sponsors.html">Sponsorship Inquiries</a>
       </div>
     </div>
@@ -228,6 +229,5 @@
   </footer>
 
   <script src="../../script.js"></script>
-  <script src="sponsors.js"></script>
 </body>
 </html>
