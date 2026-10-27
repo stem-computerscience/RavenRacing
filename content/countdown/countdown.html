@@ -66,7 +66,7 @@ h2{font-size:96px}
 .sm .unit:first-child .num{min-width:2.3ch}
 .sm .lbl{font-size:15px;margin-top:12px}
 .colon{font-family:var(--display);font-weight:800;color:var(--green-hi);align-self:flex-start}
-/* 3 weeks out: yellow tiles; 1 week out: red tiles */
+/* 15 or fewer school days: yellow tiles; 5 or fewer: red tiles */
 .timer.warn .num{color:var(--yellow);-webkit-text-stroke:.035em var(--navy);paint-order:stroke fill}
 .timer.warn .colon{color:var(--yellow)}
 .timer.alert .num{color:var(--red)}
@@ -126,19 +126,6 @@ h2{font-size:96px}
 .road-timer .mid .lbl{margin-top:16px}
 .road-timer .timer{gap:16px}
 
-.sd-line{font-size:28px;color:var(--mist);margin:10px 0 0;font-weight:500}
-.sd-line b,.hall-sd b{font-family:var(--display);font-style:italic;font-weight:800;color:var(--green-hi);font-size:1.35em;font-variant-numeric:tabular-nums}
-.sd-v{font-family:var(--display);font-style:italic;font-weight:800;font-size:44px;line-height:.9;color:var(--green-hi);font-variant-numeric:tabular-nums}
-.race-sd{display:flex;align-items:center;gap:22px;margin-top:44px}
-.race-sd b{font-family:var(--display);font-style:italic;font-weight:900;font-size:110px;line-height:.8;color:var(--green-hi);font-variant-numeric:tabular-nums}
-.race-sd span{font-family:var(--display);font-weight:700;font-size:30px;letter-spacing:.2em;text-transform:uppercase;color:var(--mist);line-height:1.15}
-/* school days: yellow at 15 or fewer, red at 5 or fewer */
-.sd.sd-warn{color:var(--yellow)}
-.sd.sd-alert{color:var(--red)}
-.road-sd{margin-left:auto;display:flex;flex-direction:column;align-items:center;padding-left:40px;border-left:3px solid rgba(255,255,255,.14)}
-.sd-big{font-family:var(--display);font-style:italic;font-weight:900;font-size:120px;line-height:.85;color:var(--green-hi);font-variant-numeric:tabular-nums}
-.road-sd .lbl{font-size:22px;margin-top:16px}
-.hall-sd{font-size:28px;font-weight:600;margin-top:18px}
 
 /* hallway */
 #s-hall .pad{inset:50px 70px 96px 70px}
@@ -183,7 +170,6 @@ body:hover #ui,#ui:focus-within,body.touch #ui{opacity:1}
       <div class="eyebrow">Greenpower F24 · 2026–27 Season</div>
       <h1>Race<br>Countdown</h1>
       <p class="sub">Two races at Richmond Hill Middle School</p>
-      <p class="sd-line"><b class="sd" data-race="dec"></b> school days to Race 1 · <b class="sd" data-race="apr"></b> to Race 2</p>
       <div class="minis">
         <div class="mini"><div class="tag">Dec 12<small>Race 1</small></div><div class="timer sm" data-race="dec"></div></div>
         <div class="mini"><div class="tag">Apr 17<small>Race 2</small></div><div class="timer sm" data-race="apr"></div></div>
@@ -201,7 +187,6 @@ body:hover #ui,#ui:focus-within,body.touch #ui{opacity:1}
     <div class="eyebrow">Race 1 · First race of the season</div>
     <div class="race-head"><h2>Richmond Hill</h2><div class="date"><span>Sat Dec 12</span></div></div>
     <div class="timer-wrap"><div class="timer big" data-race="dec"></div></div>
-    <div class="race-sd"><b class="sd" data-race="dec"></b><span>school days<br>left</span></div>
     <div class="facts">
       <div class="fact"><div class="k">Venue</div><div class="v">Richmond Hill Middle School</div></div>
       <div class="fact"><div class="k">Race time</div><div class="v">7:00 AM</div></div>
@@ -219,7 +204,7 @@ body:hover #ui,#ui:focus-within,body.touch #ui{opacity:1}
     <div class="eyebrow">Pit board</div>
     <h2>Road to Dec 12</h2>
     <div class="track" id="track"><div class="fill" id="fill"></div></div>
-    <div class="road-timer"><div class="road-lbl">Lights out<br>Sat Dec 12<br>7:00 AM</div><div class="timer mid" data-race="dec" data-nosec></div><div class="road-sd"><div class="sd-big"><span class="sd" data-race="dec"></span></div><div class="lbl">School days left</div></div></div>
+    <div class="road-timer"><div class="road-lbl">Lights out<br>Sat Dec 12<br>7:00 AM</div><div class="timer mid" data-race="dec" data-nosec></div></div>
   </div>
   <div class="stripe"></div><div class="checker"></div>
 </section>
@@ -232,7 +217,6 @@ body:hover #ui,#ui:focus-within,body.touch #ui{opacity:1}
     <div class="eyebrow">Race 2 · Spring</div>
     <div class="race-head"><h2>Richmond Hill</h2><div class="date"><span>Sat Apr 17</span></div></div>
     <div class="timer-wrap"><div class="timer big" data-race="apr"></div></div>
-    <div class="race-sd"><b class="sd" data-race="apr"></b><span>school days<br>left</span></div>
     <div class="facts">
       <div class="fact"><div class="k">Venue</div><div class="v">Richmond Hill Middle School</div></div>
       <div class="fact"><div class="k">Race time</div><div class="v">7:00 AM</div></div>
@@ -254,13 +238,11 @@ body:hover #ui,#ui:focus-within,body.touch #ui{opacity:1}
       <div class="hall-card">
         <div class="race-head"><div class="date"><span>Sat Dec 12 · 7:00 AM</span></div></div>
         <div class="where">Race 1 · Richmond Hill Middle School</div>
-        <div class="hall-sd"><b class="sd" data-race="dec"></b> school days left</div>
         <div class="timer-wrap"><div class="timer mid" data-race="dec"></div></div>
       </div>
       <div class="hall-card">
         <div class="race-head"><div class="date"><span>Sat Apr 17 · 7:00 AM</span></div></div>
         <div class="where">Race 2 · Richmond Hill Middle School</div>
-        <div class="hall-sd"><b class="sd" data-race="apr"></b> school days left</div>
         <div class="timer-wrap"><div class="timer mid" data-race="apr"></div></div>
       </div>
     </div>
@@ -310,17 +292,17 @@ body:hover #ui,#ui:focus-within,body.touch #ui{opacity:1}
   function cell(v,l){return '<div class="unit"><div class="num"><span>'+v+'</span></div><div class="lbl">'+l+'</div></div>'}
   var colon='<div class="colon">:</div>';
   function render(el,now){
-    var r=RACES[el.getAttribute("data-race")], html;
+    var key=el.getAttribute("data-race"), r=RACES[key], sd=schoolDaysLeft(key,now), html;
     if(now>=r.end){html='<div class="status"><span>Done ✓</span></div>'}
     else if(now>=r.start){html='<div class="status"><span>Race day!</span></div>'}
     else{
-      var s=Math.floor((r.start-now)/1000), d=Math.floor(s/86400); s-=d*86400;
+      var s=Math.floor((r.start-now)/1000); s-=Math.floor(s/86400)*86400;
       var h=Math.floor(s/3600); s-=h*3600; var m=Math.floor(s/60); s-=m*60;
-      html=cell(d,d===1?"Day":"Days")+colon+cell(pad(h),"Hrs")+colon+cell(pad(m),"Min")+(el.hasAttribute("data-nosec")?"":colon+cell(pad(s),"Sec"));
+      html=cell(sd,sd===1?"School Day":"School Days")+colon+cell(pad(h),"Hrs")+colon+cell(pad(m),"Min")+(el.hasAttribute("data-nosec")?"":colon+cell(pad(s),"Sec"));
     }
-    var left=r.start-now, DAY=86400000;
-    el.classList.toggle("alert", left>0 && left<=7*DAY);
-    el.classList.toggle("warn", left>7*DAY && left<=21*DAY);
+    var on=now<r.start;
+    el.classList.toggle("alert", on && sd<=5);
+    el.classList.toggle("warn", on && sd>5 && sd<=15);
     if(el._h!==html){el.innerHTML=html;el._h=html}
   }
   // Eastern local date string for "days away"
@@ -330,14 +312,14 @@ body:hover #ui,#ui:focus-within,body.touch #ui{opacity:1}
   }
   function dayDiff(a,b){return Math.round((Date.parse(b+"T12:00:00Z")-Date.parse(a+"T12:00:00Z"))/86400000)}
   var track=document.getElementById("track"), road=document.getElementById("s-road");
-  var roadH=road.querySelector("h2"), roadLbl=road.querySelector(".road-lbl"), roadTimer=road.querySelector(".timer"), roadSd=road.querySelector(".sd");
+  var roadH=road.querySelector("h2"), roadLbl=road.querySelector(".road-lbl"), roadTimer=road.querySelector(".timer");
   var emptyMsg=document.createElement("p"); emptyMsg.className="track-empty"; emptyMsg.hidden=true;
   track.parentNode.insertBefore(emptyMsg, track.nextSibling);
   var phase=null, MILESTONES=[];
   function buildRoad(key){
     var R=ROADS[key]; phase=key; MILESTONES=R.items;
     roadH.textContent=R.title; roadLbl.innerHTML=R.lbl; road.setAttribute("aria-label",R.title);
-    roadTimer.setAttribute("data-race",key); roadTimer._h=null; roadSd.setAttribute("data-race",key);
+    roadTimer.setAttribute("data-race",key); roadTimer._h=null;
     emptyMsg.textContent=R.empty;
     [].slice.call(track.querySelectorAll(".ms")).forEach(function(e){e.remove()});
     MILESTONES.forEach(function(m){
@@ -384,17 +366,16 @@ body:hover #ui,#ui:focus-within,body.touch #ui{opacity:1}
       p.forEach(function(x){if(x.type==="hour")h=+x.value;if(x.type==="minute")m=+x.value});return h*60+m}
     catch(e){return now.getHours()*60+now.getMinutes()}
   }
-  // Counts school days before race day, including today.
+  // Dismissal time (Eastern, minutes after midnight). After this, today no longer counts.
+  var DISMISSAL=15*60+30;
+  // Counts school days before race day, including today until dismissal.
   function schoolDaysLeft(race,now){
     var d=etDay(now), n=0;
+    if(etMinutes(now)>=DISMISSAL)d=addDay(d,1);
     for(;d<RACE_DAY[race];d=addDay(d,1)){if(isSchool(d))n++}
     return n;
   }
-  var sds=[].slice.call(document.querySelectorAll(".sd"));
-  function renderSD(now){var c={dec:schoolDaysLeft("dec",now),apr:schoolDaysLeft("apr",now)};
-    sds.forEach(function(el){var n=c[el.getAttribute("data-race")],v=String(n);if(el.textContent!==v)el.textContent=v;
-      el.classList.toggle("sd-alert",n>0&&n<=5);el.classList.toggle("sd-warn",n>5&&n<=15)})}
-  function tick(){var now=new Date();timers.forEach(function(t){render(t,now)});renderTrack(now);renderSD(now)}
+  function tick(){var now=new Date();timers.forEach(function(t){render(t,now)});renderTrack(now)}
   tick(); setInterval(tick,1000);
 
   // Slides
