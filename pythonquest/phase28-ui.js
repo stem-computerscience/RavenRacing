@@ -75,14 +75,14 @@ function lines(source,changed){
 }
 const verifiedAttempts=[];
 window.addEventListener("pythonquest:verified-attempt",e=>{
- const d=e.detail||{};if(!d.id||!d.code)return;
+ const d=e.detail||{};if(!d.id||!d.code)return;success.hidden=false;
  const title=d.title||("Chapter "+d.mission);
  const starter=typeof d.starter==="string"?d.starter:"";
  verifiedAttempts.splice(verifiedAttempts.findIndex(item=>item.id===d.id),verifiedAttempts.some(item=>item.id===d.id)?1:0);
  verifiedAttempts.unshift({id:d.id,title,code:d.code,starter,world:d.world,mode:d.mode,mission:d.mission});
  if(verifiedAttempts.length>5)verifiedAttempts.length=5;
 });
-window.addEventListener("pythonquest:login",()=>{verifiedAttempts.length=0});
+window.addEventListener("pythonquest:login",()=>{verifiedAttempts.length=0;success.hidden=true;hintSeen.clear();hintHistory.replaceChildren();hintHistory.hidden=true});
 document.querySelectorAll(".logout").forEach(button=>button.addEventListener("click",()=>{verifiedAttempts.length=0},true));
 let selectedAttempt=0;
 function renderJournal(){
@@ -152,5 +152,8 @@ function openPanel(name){
 }
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){journal.hidden=true;ref.hidden=true;return}if(/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;if(e.key.toLowerCase()==="j")openPanel("Journal");if(e.key.toLowerCase()==="m")openPanel("Map")});
 /* Observe only the existing status, never replace existing run-code or XP logic. */
-const status=$("status");if(status)new MutationObserver(()=>{const s=status.textContent||"";if(/chapter complete|mission complete|challenge complete|successfully completed/i.test(s))success.hidden=false}).observe(status,{childList:true,characterData:true,subtree:true});
+const chapterHeading=$("chapterTitle");
+if(chapterHeading)new MutationObserver(()=>{
+ success.hidden=true;hintSeen.clear();hintHistory.replaceChildren();hintHistory.hidden=true;
+}).observe(chapterHeading,{childList:true,characterData:true,subtree:true});
 })();
