@@ -22,3 +22,7 @@
 [data-world="dungeon"] .club-badge{background:#3c2449;border-color:#c69a62;color:#fff2d7}
 #clubBadgeShowcase section{margin:.8rem 0;padding:.7rem;border:1px solid #7489a1;border-radius:.6rem}
 #clubStudentExtras,#clubAdvisorExtras{margin:1rem 0;padding:1rem;border:1px solid #8190a0;border-radius:.6rem}
+
+.pq-achievement-toast{position:fixed;right:1rem;bottom:1rem;z-index:9999;max-width:22rem;padding:1rem 1.25rem;border:2px solid #c6a75c;border-radius:1rem;background:#172c48;color:#fff;font-weight:700;box-shadow:0 6px 24px #0006;animation:pq-achievement-in .45s ease-out}
+@keyframes pq-achievement-in{from{opacity:0;transform:translateY(22px) scale(.94)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media(prefers-reduced-motion:reduce){.pq-achievement-toast{animation:none}}
