@@ -4,3 +4,5 @@
 .inventory-panel{display:flex;align-items:center;gap:.9rem;flex-wrap:wrap;background:#122f3a;border:1px solid #397c7d;border-radius:8px;padding:.75rem 1rem;margin-top:.75rem}.inventory-panel strong{color:#91ead8;font-size:.85rem;text-transform:uppercase;letter-spacing:.07em}.inventory-panel span{color:#e6f6f3;font-size:.9rem}.legend{flex-wrap:wrap}
 
 .mode-description{padding:.7rem 1rem;border:1px solid #35546b;border-radius:8px;background:#13283a;color:#d6e9f3;line-height:1.5}.game-actions{flex-wrap:wrap}.terminal-secondary{opacity:.82}
+
+.student-placement{display:flex;gap:.65rem;align-items:center;flex-wrap:wrap;margin:.8rem 0}.student-placement label{display:inline-flex;align-items:center;gap:.4rem;color:#d4e6f2}.student-placement select{width:auto}.student-placement input[type=checkbox]{width:auto}
