@@ -1,0 +1,71 @@
+/* Python Quest Phase 28 progressive enhancement.
+   Adds UI without replacing the existing Python runner, API, auth, or club features. */
+(()=>{"use strict";
+const $=id=>document.getElementById(id);
+const game=$("game"),layout=document.querySelector(".play-layout"),editor=document.querySelector(".editor-panel");
+if(!game||!layout||!editor)return;
+const style=document.createElement("style");style.textContent=`
+#pqNav{display:flex;flex-wrap:wrap;gap:.4rem;margin:.65rem 0}
+#pqNav button{padding:.45rem .65rem}
+#pqReference{position:absolute;right:.7rem;top:3rem;width:min(20rem,85%);max-height:65%;overflow:auto;z-index:9;background:#1b3046;border:2px solid #68b9d0;border-radius:.7rem;padding:1rem;box-shadow:0 10px 28px #0009;color:#eef7ff}
+.editor-panel{position:relative;min-width:0}
+#pqReference pre{white-space:pre-wrap;background:#101a2a;padding:.7rem;border-radius:.4rem}
+#pqJournalOverlay{position:fixed;inset:0;z-index:1000;background:#02070dc9;display:grid;place-items:center;padding:1rem}
+#pqJournalOverlay[hidden],#pqReference[hidden]{display:none}
+#pqJournalModal{width:min(1100px,96vw);max-height:92vh;overflow:auto;border:3px solid #c7a367;border-radius:1rem;background:#f0e3c5;color:#2e281f;padding:1rem}
+[data-world="space"] #pqJournalModal{background:#152c40;color:#f0f8ff;border-color:#4bc9e1}
+.pq-head{display:flex;justify-content:space-between;align-items:center;gap:1rem}
+.pq-review{display:grid;grid-template-columns:minmax(135px,23%) minmax(0,1fr);gap:1rem}
+.pq-recent{display:flex;flex-direction:column;gap:.45rem}
+.pq-recent button{text-align:left}
+.pq-recent button[aria-current="true"]{outline:3px solid #61b996}
+.pq-code-pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.6rem}
+.pq-code{background:#101a29;color:#e1edfc;border-radius:.5rem;padding:.6rem;min-width:0}
+.pq-code pre{overflow:auto;max-height:270px;white-space:pre;font:12px/1.55 monospace}
+.pq-code .changed{display:block;background:#254a3b;color:#e5ffed}
+.pq-code .normal{display:block}
+.pq-small{font-size:.85rem;opacity:.85}
+#pqInstructionDetails{margin:.5rem 0}
+#pqInstructionDetails summary{cursor:pointer}
+#pqSuccess{background:#1a4638;color:#edfff4;border:1px solid #6ac49d;border-radius:.6rem;padding:.7rem;margin:.6rem 0}
+#pqSuccess[hidden]{display:none}
+#pqHintHistory{font-size:.9rem}
+#pqHintHistory[hidden]{display:none}
+#pqHintHistory p{background:#413a26;color:#ffe8a7;padding:.5rem;border-radius:.4rem}
+#output{resize:vertical;overflow:auto;min-height:5rem}
+#run{font-weight:800;padding:.75rem 1.2rem}
+@media(min-width:850px){.play-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start;gap:.75rem}}
+@media(max-width:700px){.pq-review,.pq-code-pair{grid-template-columns:1fr}}
+`;document.head.append(style);
+const nav=document.createElement("nav");nav.id="pqNav";nav.setAttribute("aria-label","Adventure navigation");
+const panels=["Map","Quests","Character","Inventory","Badges","Journal","Progress"];
+panels.forEach(name=>{const b=document.createElement("button");b.type="button";b.textContent=name;b.addEventListener("click",()=>openPanel(name));nav.append(b)});
+const hud=document.querySelector(".hud");(hud||layout).before(nav);
+const details=document.createElement("details");details.id="pqInstructionDetails";details.open=true;const summary=document.createElement("summary");summary.textContent="Challenge instructions";details.append(summary);const lesson=$("lesson");if(lesson){lesson.before(details);details.append(lesson)}
+const ref=document.createElement("aside");ref.id="pqReference";ref.hidden=true;ref.setAttribute("aria-label","Python quick reference");ref.innerHTML='<button type="button" id="pqRefClose" style="float:right">Close</button><h3>Python Quick Reference</h3><label>Topic <select id="pqRefTopic"><option value="variables">Variables</option><option value="printing">Printing</option><option value="conditions">Conditions</option><option value="loops">Loops</option></select></label><p id="pqRefDesc"></p><pre id="pqRefCode"></pre>';
+editor.append(ref);
+const refButton=document.createElement("button");refButton.type="button";refButton.textContent="Python Reference";$("hint").after(refButton);
+const refs={variables:["Store information using names.",'password = "OPEN"\nscore = 10'],printing:["Display text or a value.",'print("Hello")\nprint(password)'],conditions:["Choose what happens using if.",'if score >= 10:\n    print("Ready")'],loops:["Repeat code using for.",'for i in range(3):\n    print(i)']};
+function updateRef(){const r=refs[$("pqRefTopic").value];$("pqRefDesc").textContent=r[0];$("pqRefCode").textContent=r[1]}
+$("pqRefTopic").addEventListener("change",updateRef);updateRef();
+refButton.onclick=()=>ref.hidden=!ref.hidden;$("pqRefClose").onclick=()=>ref.hidden=true;
+const originalReset=$("reset");if(originalReset){originalReset.addEventListener("click",e=>{if(!window.confirm("Reset your code? Your current edits may be replaced.")){e.stopImmediatePropagation();e.preventDefault()}},true)}
+const hintHistory=document.createElement("div");hintHistory.id="pqHintHistory";hintHistory.hidden=true;const hintText=$("hintText");if(hintText)hintText.after(hintHistory);
+const hintSeen=new Set();if(hintText){new MutationObserver(()=>{if(hintText.hidden||!hintText.textContent.trim())return;const value=hintText.textContent.trim();if(hintSeen.has(value))return;hintSeen.add(value);const p=document.createElement("p");p.textContent=value;hintHistory.append(p);hintHistory.hidden=false}).observe(hintText,{childList:true,characterData:true,subtree:true,attributes:true,attributeFilter:["hidden"]})}
+const success=document.createElement("div");success.id="pqSuccess";success.hidden=true;success.innerHTML='<strong>Challenge Complete!</strong><p>Python skill progress · See Progress for details.</p><button type="button" id="pqContinue">Continue Exploring</button>';const output=$("output");if(output)output.after(success);
+$("pqContinue").onclick=()=>{success.hidden=true;ref.hidden=true;const scene=document.querySelector(".scene-panel");scene?.scrollIntoView({behavior:"smooth",block:"nearest"})};
+const journal=document.createElement("div");journal.id="pqJournalOverlay";journal.hidden=true;journal.innerHTML='<section id="pqJournalModal" role="dialog" aria-modal="true" aria-label="Quest Journal"><div class="pq-head"><h2 id="pqPanelTitle">Quest Journal</h2><button type="button" id="pqPanelClose">Close ×</button></div><div id="pqPanelBody"></div></section>';document.body.append(journal);$("pqPanelClose").onclick=()=>journal.hidden=true;journal.addEventListener("click",e=>{if(e.target===journal)journal.hidden=true});
+const demo=[["The Locked Gate","Variables, strings, print()",50,"# Open the gate\n\n# Write your code here",'# Open the gate\npassword = "OPEN"\nprint(password)'],["The Wizard's Message","Strings",40,"# Write a greeting",'greeting = "Hello"\nprint(greeting)'],["Bridge Repair","Conditions",60,"# Check bridge",'planks = 5\nif planks >= 5:\n    print("Safe")'],["Forest Coordinates","Arithmetic",45,"# Calculate location",'x = 4\ny = 6\nprint(x + y)'],["The Ancient Cipher","String indexing",55,"# Decode symbol",'code = "RUNE"\nprint(code[0])']];
+let chosen=0;
+function lines(source,highlight){const box=document.createElement("pre");source.split("\n").forEach((line,i)=>{const span=document.createElement("span");span.className=highlight&&i>0?"changed":"normal";span.textContent=String(i+1).padStart(2," ")+"  "+line;box.append(span)});return box}
+function renderJournal(){
+ const root=$("pqPanelBody");root.replaceChildren();
+ const intro=document.createElement("p");intro.textContent="Your saved progress is shown below. Completed-code history will appear here once connected to verified attempt records.";root.append(intro);
+ const original=$("learningJournal");if(original){const copy=original.cloneNode(true);copy.removeAttribute("id");root.append(copy)}
+ const note=document.createElement("p");note.className="pq-small";note.textContent="The five sample solutions have been removed. No sample code is shown as student work.";root.append(note)
+}
+function openPanel(name){$("pqPanelTitle").textContent=name==="Journal"?"Quest Journal":name;journal.hidden=false;document.querySelector("#pqJournalModal").style.borderColor=($("world")?.value==="dungeon"?"#c7a367":"#4bc9e1");if(name==="Journal")renderJournal();else{const root=$("pqPanelBody");root.replaceChildren();const p=document.createElement("p");p.textContent=name+" visual shell — existing game progress and data are unchanged.";root.append(p);if(name==="Progress"){const existing=$("progress");if(existing){const q=document.createElement("p");q.textContent=existing.textContent;root.append(q)}}}}
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){journal.hidden=true;ref.hidden=true;return}if(/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;if(e.key.toLowerCase()==="j")openPanel("Journal");if(e.key.toLowerCase()==="m")openPanel("Map")});
+/* Observe only the existing status, never replace existing run-code or XP logic. */
+const status=$("status");if(status)new MutationObserver(()=>{const s=status.textContent||"";if(/chapter complete|mission complete|challenge complete|successfully completed/i.test(s))success.hidden=false}).observe(status,{childList:true,characterData:true,subtree:true});
+})();
