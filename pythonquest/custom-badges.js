@@ -1,0 +1,10 @@
+(()=>{"use strict";
+const $=id=>document.getElementById(id),api=async(path,method="GET",body)=>{const r=await fetch(window.PYTHONQUEST_API+path,{method,headers:{authorization:"Bearer "+sessionStorage.getItem("pq_token"),"content-type":"application/json"},body:body?JSON.stringify(body):undefined});const d=await r.json();if(!r.ok)throw Error(d.error||"Request failed");return d;};
+const icons={star:"★",rocket:"🚀",shield:"🛡️",lightbulb:"💡",trophy:"🏆",heart:"♥",code:"⌘"};
+async function init(){if(!sessionStorage.getItem("pq_token"))return;try{const me=await api("/api/me");const catalog=await api("/api/club/badges/catalog");const special=$("clubAwardType");if(special){for(const def of catalog.badges){if(special.querySelector('[value="'+def.id+'"]'))continue;const option=document.createElement("option");option.value=def.id;option.textContent=(icons[def.icon]||"★")+" "+def.name;special.append(option);}}
+if(me.user.role==="teacher"){$("clubCustomBadgePanel").hidden=false;}
+if(me.user.role==="student"){const p=await api("/api/club/achievements");const root=$("clubCustomBadges");if(root){root.replaceChildren();for(const def of catalog.badges){if(!p.special.includes(def.id))continue;const item=document.createElement("li");item.textContent=(icons[def.icon]||"★")+" "+def.name+" — "+(p.specialDates[def.id]?new Date(p.specialDates[def.id]).toLocaleDateString():"Date unavailable")+" · "+def.description;root.append(item);}}}
+}catch{}}
+async function create(){const status=$("clubCustomBadgeStatus");try{await api("/api/club/badges/catalog","POST",{name:$("clubBadgeName").value,description:$("clubBadgeDescription").value,icon:$("clubBadgeIcon").value});status.textContent="Badge created. Refresh to add it to the award menu.";}catch(e){status.textContent=e.message;}}
+document.addEventListener("DOMContentLoaded",()=>{if($("clubCreateBadge"))$("clubCreateBadge").onclick=create;init();window.addEventListener("pythonquest:login",()=>setTimeout(init,250));});
+})();
