@@ -26,6 +26,11 @@ async function logPythonAttempt(code,mission,world,mode,result,success){
  catch(e){setMessage("attemptStatus","Attempt could not be saved: "+e.message);}
 }
 async function submitBossProject(){const status=$("bossSubmitStatus"),button=$("submitBoss");if(!lastBossAttempt||lastBossAttempt.mission!==progress.mission||lastBossAttempt.code!==$("code").value){status.textContent="Run your current boss code before submitting.";return;}button.disabled=true;const completed=lastBossAttempt.success;try{await api("/api/attempts/"+lastBossAttempt.id+"/submit-boss","POST",{});if(completed&&canAdvance()){progress.mission++;progress.xp=Math.max(progress.xp,(progress.mission-1)*100);await save();render();}status.textContent="Boss project saved! Successful practice checks unlock the next chapter when the region is available; your advisor can also mark it complete.";lastBossAttempt=null;}catch(e){status.textContent="Submission failed: "+e.message;button.disabled=false;}}
+async function continueBossProject(){
+ const status=$("bossSubmitStatus");if(progress.mission!==4){status.textContent="No boss project is awaiting completion.";return;}
+ if(!canAdvance()){status.textContent="The next region must be released by your advisor.";return;}
+ const previous={...progress};progress.mission=5;progress.xp=Math.max(progress.xp,400);
+ try{await save();render();status.textContent="Boss project complete! Chapter 5 unlocked.";}catch(e){progress=previous;status.textContent="Not unlocked yet. Complete the practice checks and submit, or ask your advisor to mark your submitted project complete.";}}
 async function loadBossFeedback(){
  const root=$("bossFeedback");if(!root)return;
  try{const data=await api("/api/boss/feedback");root.replaceChildren();if(!data.projects.length){root.textContent="No boss projects submitted yet.";return;}
@@ -151,3 +156,5 @@ if($("bossRefresh"))$("bossRefresh").onclick=loadBossQueue;
 if($("bossFeedbackRefresh"))$("bossFeedbackRefresh").onclick=loadBossFeedback;
 
 if($("submitBoss"))$("submitBoss").onclick=submitBossProject;
+
+if($("continueBoss"))$("continueBoss").onclick=continueBossProject;
