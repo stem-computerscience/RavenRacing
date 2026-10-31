@@ -105,7 +105,51 @@ function renderJournal(){
  const explanation=document.createElement("p");explanation.className="pq-small";explanation.textContent="Original starter code and successful submitted code are shown side by side. Only added or modified lines are highlighted green.";review.append(explanation);
  grid.append(review);root.append(grid)
 }
-function openPanel(name){$("pqPanelTitle").textContent=name==="Journal"?"Quest Journal":name;journal.hidden=false;document.querySelector("#pqJournalModal").style.borderColor=($("world")?.value==="dungeon"?"#c7a367":"#4bc9e1");if(name==="Journal")renderJournal();else{const root=$("pqPanelBody");root.replaceChildren();const p=document.createElement("p");p.textContent=name+" visual shell — existing game progress and data are unchanged.";root.append(p);if(name==="Progress"){const existing=$("progress");if(existing){const q=document.createElement("p");q.textContent=existing.textContent;root.append(q)}}}}
+function appendField(root,label,value){
+ const p=document.createElement("p");const strong=document.createElement("strong");strong.textContent=label+": ";p.append(strong,document.createTextNode(value||"Not available"));root.append(p)
+}
+function appendCopy(root,sourceId){
+ const source=$(sourceId);if(!source)return false;
+ const copy=source.cloneNode(true);copy.removeAttribute("id");
+ copy.querySelectorAll("[id]").forEach(node=>node.removeAttribute("id"));
+ copy.querySelectorAll("button,input,select,textarea,a").forEach(node=>{node.removeAttribute("href");node.disabled=true;node.setAttribute("aria-disabled","true")});
+ root.append(copy);return true
+}
+function openPanel(name){
+ $("pqPanelTitle").textContent=name==="Journal"?"Quest Journal":name;
+ journal.hidden=false;
+ document.querySelector("#pqJournalModal").style.borderColor=$("world")?.value==="dungeon"?"#c7a367":"#4bc9e1";
+ if(name==="Journal"){renderJournal();$("pqPanelClose").focus();return}
+ const root=$("pqPanelBody");root.replaceChildren();
+ if(name==="Progress"){
+  appendField(root,"Current progress",$("progress")?.textContent);
+  appendCopy(root,"learningJournal");
+ }else if(name==="Quests"){
+  appendField(root,"Current quest",$("chapterTitle")?.textContent);
+  appendField(root,"Objective",$("objective")?.textContent);
+  appendField(root,"Region",$("regionStatus")?.textContent);
+  appendField(root,"Quest instructions",$("lesson")?.textContent);
+ }else if(name==="Inventory"){
+  appendField(root,"Backpack",$("inventory")?.textContent);
+ }else if(name==="Character"){
+  appendField(root,"Current world",$("world")?.selectedOptions?.[0]?.textContent);
+  appendField(root,"Adventure",$("chapterTitle")?.textContent);
+  appendField(root,"Coordinates",$("coordinates")?.textContent);
+ }else if(name==="Badges"){
+  if(!appendCopy(root,"clubRewards"))appendField(root,"Badges","Open My XP, badges, and achievements to view your rewards.");
+ }else if(name==="Map"){
+  appendField(root,"Location",$("worldTitle")?.textContent);
+  appendField(root,"Current objective",$("objective")?.textContent);
+  const source=$("scene");if(source){
+   const map=source.cloneNode(true);map.removeAttribute("id");
+   map.setAttribute("aria-label","Current area map");
+   map.style.width="100%";map.style.maxHeight="55vh";
+   root.append(map);
+  }
+  const p=document.createElement("p");p.className="pq-small";p.textContent="Current-area map. Destination fast travel is not yet implemented.";root.append(p);
+ }
+ $("pqPanelClose").focus()
+}
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){journal.hidden=true;ref.hidden=true;return}if(/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;if(e.key.toLowerCase()==="j")openPanel("Journal");if(e.key.toLowerCase()==="m")openPanel("Map")});
 /* Observe only the existing status, never replace existing run-code or XP logic. */
 const status=$("status");if(status)new MutationObserver(()=>{const s=status.textContent||"";if(/chapter complete|mission complete|challenge complete|successfully completed/i.test(s))success.hidden=false}).observe(status,{childList:true,characterData:true,subtree:true});
