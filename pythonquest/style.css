@@ -16,3 +16,9 @@
 .accessibility-tools{display:flex;flex-wrap:wrap;gap:1rem;margin:.7rem 0}.accessibility-tools label{display:inline-flex;align-items:center;gap:.35rem}.large-text .editor-panel,.large-text .scene-panel{font-size:1.15rem}.large-text #code,.large-text #output{font-size:1.15rem;line-height:1.65}.large-text #lesson,.large-text #hintText{font-size:1.15rem;line-height:1.6}.reduced-motion *, .reduced-motion *::before, .reduced-motion *::after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
 
 .journal-panel{margin:1rem 0;padding:1rem;border:1px solid #35566a;border-radius:10px}.journal-panel summary{cursor:pointer;font-weight:700}.journal-panel p{line-height:1.5}.journal-skills{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.5rem;padding:0;list-style:none}.journal-skills li{padding:.6rem;border-radius:6px;background:#203849}.journal-recorded{border-left:4px solid #55af90}.journal-pending{border-left:4px solid #8899a7}
+
+/* Club achievement badges: world-themed, readable without color */
+.club-badge{display:inline-flex;align-items:center;margin:.35rem;padding:.45rem .7rem;border:2px solid #6a91c8;border-radius:999px;background:#152e52;color:#f3f8ff;font-weight:600;gap:.3rem}
+[data-world="dungeon"] .club-badge{background:#3c2449;border-color:#c69a62;color:#fff2d7}
+#clubBadgeShowcase section{margin:.8rem 0;padding:.7rem;border:1px solid #7489a1;border-radius:.6rem}
+#clubStudentExtras,#clubAdvisorExtras{margin:1rem 0;padding:1rem;border:1px solid #8190a0;border-radius:.6rem}
