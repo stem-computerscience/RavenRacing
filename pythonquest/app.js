@@ -13,12 +13,12 @@ const chapters=[
 const REGIONS=[{name:"First Steps",concepts:"Printing, strings and syntax"},{name:"Data Lab",concepts:"Variables, types and arithmetic"},{name:"Decision Zone",concepts:"Comparisons and conditionals"},{name:"Loop Labyrinth",concepts:"for, while and range"},{name:"Collection Vault",concepts:"Lists and dictionaries"},{name:"Function Fortress",concepts:"Functions, parameters and return values"}];const MODES=["hybrid","code","terminal"];const SKILL_NAMES=["Strings & print","Variables","Arithmetic","Conditionals","Loops","Lists"];
 let learningMode="hybrid";
 const terminalTasks=[
-{lesson:"Create a string variable named message with the value 'Hello, Python!' and print it.",starter:"message = \"\"  # TODO: Store Hello, Python! here\\nprint(message)",expected:"Hello, Python!"},
-{lesson:"Create a variable named explorer with the value 'Ada' and print it.",starter:"explorer = \"\"  # TODO: Store Ada here\\nprint(explorer)",expected:"Ada"},
-{lesson:"Use arithmetic to calculate the total of 12 + 8. Store it in energy and print it.",starter:"energy = 0  # TODO: Calculate 12 + 8\\nprint(energy)",expected:"20"},
-{lesson:"Use a comparison and an if statement. Print 'Access granted' when access_level is at least 2.",starter:"access_level = 0  # TODO: Choose a level that grants access\\n# TODO: Use if and >= to print Access granted",expected:"Access granted"},
+{lesson:"Create a string variable named message with the value 'Hello, Python!' and print it.",starter:"message = \"\"  # TODO: Store Hello, Python! here\nprint(message)",expected:"Hello, Python!"},
+{lesson:"Create a variable named explorer with the value 'Ada' and print it.",starter:"explorer = \"\"  # TODO: Store Ada here\nprint(explorer)",expected:"Ada"},
+{lesson:"Use arithmetic to calculate the total of 12 + 8. Store it in energy and print it.",starter:"energy = 0  # TODO: Calculate 12 + 8\nprint(energy)",expected:"20"},
+{lesson:"Use a comparison and an if statement. Print 'Access granted' when access_level is at least 2.",starter:"access_level = 0  # TODO: Choose a level that grants access\n# TODO: Use if and >= to print Access granted",expected:"Access granted"},
 {lesson:"Use a for loop and range() to print the numbers 0, 1, and 2, each on a new line.",starter:"# TODO: Use for and range() to print 0, 1, 2",expected:"0\n1\n2"},
-{lesson:"Create a list containing 'key' and 'map'. Print the number of items using len().",starter:"inventory = []  # TODO: Add \"key\" and \"map\"\\n# TODO: Print the length of inventory",expected:"2"}
+{lesson:"Create a list containing 'key' and 'map'. Print the number of items using len().",starter:"inventory = []  # TODO: Add \"key\" and \"map\"\n# TODO: Print the length of inventory",expected:"2"}
 ];
 function showRegionStatus(){const region=Math.ceil(progress.mission/4);const released=progress.releasedRegion||1;const el=$("regionStatus");if(el)el.textContent="Region "+region+" · "+(REGIONS[region-1]?.name||"")+" · "+(region<=released?"Available":"Locked");}
 function canAdvance(){return progress.mission<6&&Math.ceil((progress.mission+1)/4)<=(progress.releasedRegion||1);}
