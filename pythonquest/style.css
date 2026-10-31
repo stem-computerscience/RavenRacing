@@ -6,3 +6,5 @@
 .mode-description{padding:.7rem 1rem;border:1px solid #35546b;border-radius:8px;background:#13283a;color:#d6e9f3;line-height:1.5}.game-actions{flex-wrap:wrap}.terminal-secondary{opacity:.82}
 
 .student-placement{display:flex;gap:.65rem;align-items:center;flex-wrap:wrap;margin:.8rem 0}.student-placement label{display:inline-flex;align-items:center;gap:.4rem;color:#d4e6f2}.student-placement select{width:auto}.student-placement input[type=checkbox]{width:auto}
+
+.bulk-placement{display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;margin:1rem 0;padding:1rem;border:1px solid #3c6178;border-radius:9px;background:#142b3c}.bulk-placement strong{width:100%}.bulk-placement label,.bulk-check-label{display:inline-flex;align-items:center;gap:.4rem;color:#d4e6f2}.bulk-placement input[type=checkbox],.bulk-check-label input{width:auto}.bulk-placement select{width:auto}.bulk-check-label{margin-bottom:.6rem}
