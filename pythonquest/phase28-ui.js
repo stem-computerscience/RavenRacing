@@ -57,12 +57,28 @@ $("pqContinue").onclick=()=>{success.hidden=true;ref.hidden=true;const scene=doc
 const journal=document.createElement("div");journal.id="pqJournalOverlay";journal.hidden=true;journal.innerHTML='<section id="pqJournalModal" role="dialog" aria-modal="true" aria-label="Quest Journal"><div class="pq-head"><h2 id="pqPanelTitle">Quest Journal</h2><button type="button" id="pqPanelClose">Close ×</button></div><div id="pqPanelBody"></div></section>';document.body.append(journal);$("pqPanelClose").onclick=()=>journal.hidden=true;journal.addEventListener("click",e=>{if(e.target===journal)journal.hidden=true});
 const demo=[["The Locked Gate","Variables, strings, print()",50,"# Open the gate\n\n# Write your code here",'# Open the gate\npassword = "OPEN"\nprint(password)'],["The Wizard's Message","Strings",40,"# Write a greeting",'greeting = "Hello"\nprint(greeting)'],["Bridge Repair","Conditions",60,"# Check bridge",'planks = 5\nif planks >= 5:\n    print("Safe")'],["Forest Coordinates","Arithmetic",45,"# Calculate location",'x = 4\ny = 6\nprint(x + y)'],["The Ancient Cipher","String indexing",55,"# Decode symbol",'code = "RUNE"\nprint(code[0])']];
 let chosen=0;
-function lines(source,highlight){const box=document.createElement("pre");source.split("\n").forEach((line,i)=>{const span=document.createElement("span");span.className=highlight&&i>0?"changed":"normal";span.textContent=String(i+1).padStart(2," ")+"  "+line;box.append(span)});return box}
+function changedLineIndices(before,after){
+ const a=before.split("\\n"),b=after.split("\\n");
+ // LCS: unchanged lines are aligned even when earlier lines are inserted/deleted.
+ // Bound comparison to avoid quadratic work on unusually long submissions.
+ if(a.length*b.length>250000){const result=new Set();b.forEach((line,i)=>{if(a[i]!==line)result.add(i)});return result}
+ const dp=Array.from({length:a.length+1},()=>new Uint16Array(b.length+1));
+ for(let i=a.length-1;i>=0;i--)for(let j=b.length-1;j>=0;j--)dp[i][j]=a[i]===b[j]?1+dp[i+1][j+1]:Math.max(dp[i+1][j],dp[i][j+1]);
+ const unchanged=new Set();let i=0,j=0;
+ while(i<a.length&&j<b.length){if(a[i]===b[j]){unchanged.add(j);i++;j++}else if(dp[i+1][j]>=dp[i][j+1])i++;else j++}
+ return new Set(b.map((_,index)=>index).filter(index=>!unchanged.has(index)))
+}
+function lines(source,changed){
+ const box=document.createElement("pre");
+ source.split("\\n").forEach((line,i)=>{const span=document.createElement("span");span.className=changed?.has(i)?"changed":"normal";span.textContent=String(i+1).padStart(2," ")+"  "+line;box.append(span)});
+ return box
+}
 const verifiedAttempts=[];
 window.addEventListener("pythonquest:verified-attempt",e=>{
  const d=e.detail||{};if(!d.id||!d.code)return;
  const title=d.title||("Chapter "+d.mission);
  const starter=typeof d.starter==="string"?d.starter:"";
+ verifiedAttempts.splice(verifiedAttempts.findIndex(item=>item.id===d.id),verifiedAttempts.some(item=>item.id===d.id)?1:0);
  verifiedAttempts.unshift({id:d.id,title,code:d.code,starter,world:d.world,mode:d.mode,mission:d.mission});
  if(verifiedAttempts.length>5)verifiedAttempts.length=5;
 });
@@ -85,8 +101,8 @@ function renderJournal(){
  const title=document.createElement("h3");title.textContent=entry.title;review.append(title);
  const info=document.createElement("p");info.textContent="Chapter "+entry.mission+" · "+entry.mode+" · server-recorded";review.append(info);
  const pair=document.createElement("div");pair.className="pq-code-pair";
- [["STARTING CODE",entry.starter],["COMPLETED CODE",entry.code]].forEach(([name,source],i)=>{const pane=document.createElement("div");pane.className="pq-code";const label=document.createElement("strong");label.textContent=name;pane.append(label,lines(source,!!i));pair.append(pane)});review.append(pair);
- const explanation=document.createElement("p");explanation.className="pq-small";explanation.textContent="Original starter code and successful submitted code are shown side by side. Green indicates completed-code lines; precise differences are not yet calculated.";review.append(explanation);
+ [["STARTING CODE",entry.starter],["COMPLETED CODE",entry.code]].forEach(([name,source],i)=>{const pane=document.createElement("div");pane.className="pq-code";const label=document.createElement("strong");label.textContent=name;pane.append(label,lines(source,i?changedLineIndices(entry.starter,entry.code):new Set()));pair.append(pane)});review.append(pair);
+ const explanation=document.createElement("p");explanation.className="pq-small";explanation.textContent="Original starter code and successful submitted code are shown side by side. Only added or modified lines are highlighted green.";review.append(explanation);
  grid.append(review);root.append(grid)
 }
 function openPanel(name){$("pqPanelTitle").textContent=name==="Journal"?"Quest Journal":name;journal.hidden=false;document.querySelector("#pqJournalModal").style.borderColor=($("world")?.value==="dungeon"?"#c7a367":"#4bc9e1");if(name==="Journal")renderJournal();else{const root=$("pqPanelBody");root.replaceChildren();const p=document.createElement("p");p.textContent=name+" visual shell — existing game progress and data are unchanged.";root.append(p);if(name==="Progress"){const existing=$("progress");if(existing){const q=document.createElement("p");q.textContent=existing.textContent;root.append(q)}}}}
