@@ -20,10 +20,12 @@ const terminalTasks=[
 {lesson:"Use a for loop and range() to print the numbers 0, 1, and 2, each on a new line.",starter:"# TODO: Use for and range() to print 0, 1, 2",expected:"0\n1\n2"},
 {lesson:"Create a list containing 'key' and 'map'. Print the number of items using len().",starter:"inventory = []  # TODO: Add \"key\" and \"map\"\n# TODO: Print the length of inventory",expected:"2"}
 ];
+let lastBossAttempt=null;
 async function logPythonAttempt(code,mission,world,mode,result,success){
- try{await api("/api/attempts","POST",{code:code.slice(0,12000),mission,world,mode,output:String(result.ok?result.output||"":result.error||"").slice(0,4000),success,evidence:result.assessment||null});}
+ try{const saved=await api("/api/attempts","POST",{code:code.slice(0,12000),mission,world,mode,output:String(result.ok?result.output||"":result.error||"").slice(0,4000),success,evidence:result.assessment||null});if(mission===4&&saved.id){lastBossAttempt={id:saved.id,code,mission};const submit=$("submitBoss");if(submit)submit.disabled=false;}return saved;}
  catch(e){setMessage("attemptStatus","Attempt could not be saved: "+e.message);}
 }
+async function submitBossProject(){const status=$("bossSubmitStatus"),button=$("submitBoss");if(!lastBossAttempt||lastBossAttempt.mission!==progress.mission||lastBossAttempt.code!==$("code").value){status.textContent="Run your current boss code before submitting.";return;}button.disabled=true;try{await api("/api/attempts/"+lastBossAttempt.id+"/submit-boss","POST",{});status.textContent="Boss project submitted for teacher grading. You may revise and submit again.";lastBossAttempt=null;}catch(e){status.textContent="Submission failed: "+e.message;button.disabled=false;}}
 async function loadBossFeedback(){
  const root=$("bossFeedback");if(!root)return;root.textContent="Loading feedback…";
  try{const data=await api("/api/boss/feedback");root.replaceChildren();if(!data.feedback.length){root.textContent="No teacher-graded boss projects yet.";return;}
@@ -32,7 +34,7 @@ async function loadBossFeedback(){
 }
 async function loadBossQueue(){
  const root=$("bossQueue");if(!root)return;root.textContent="Loading boss projects…";
- try{const data=await api("/api/boss/submissions");root.replaceChildren();if(!data.submissions.length){root.textContent="No boss submissions yet.";return;}
+ try{const data=await api("/api/boss/submissions");root.replaceChildren();if($("bossPendingCount"))$("bossPendingCount").textContent=data.pendingCount+" pending boss project"+(data.pendingCount===1?"":"s");if(!data.submissions.length){root.textContent="No boss submissions yet.";return;}
  for(const item of data.submissions){const panel=document.createElement("details"),heading=document.createElement("summary"),code=document.createElement("pre"),output=document.createElement("pre"),status=document.createElement("p");
  heading.textContent=item.username+" · Boss "+item.mission+" · "+item.created_at+" · "+item.status;code.textContent=item.code;output.textContent="Program output: "+item.output;status.textContent="Current status: "+item.status;
  const grade=document.createElement("button");grade.type="button";grade.textContent="Grade project";grade.onclick=async()=>{const categories=[["correctness",40],["concepts",30],["quality",20],["problemSolving",10]],scores={};for(const [key,max] of categories){const input=prompt(key+" (0–"+max+")",String(item.evidence?.teacherRubric?.[key]??0));if(input===null)return;const value=Number(input);if(!Number.isInteger(value)||value<0||value>max){status.textContent="Invalid "+key+" score.";return;}scores[key]=value;}const feedback=prompt("Teacher feedback and suggested fixes",item.evidence?.teacherRubric?.feedback||"");if(feedback===null)return;try{const result=await api("/api/attempts/"+item.id+"/grade","POST",{scores,feedback});item.evidence.teacherRubric=result.grade;status.textContent="Teacher grade: "+result.grade.total+"/100. "+(result.grade.passing?"Eligible for approval.":"Student should revise.");}catch(e){status.textContent=e.message;}};
@@ -59,7 +61,7 @@ function hintSteps(){if(learningMode==="terminal"){const t=terminalTasks[progres
 function resetHints(){hintLevel=0;$("hint").textContent="Hint 1 of 3";$("hintText").hidden=true;setMessage("hintText","");}
 function nextHint(){const steps=hintSteps();hintLevel=Math.min(3,hintLevel+1);$("hintText").hidden=false;setMessage("hintText","Hint "+hintLevel+" of 3: "+steps[hintLevel-1]);$("hint").textContent=hintLevel===3?"Show final hint again":"Next hint ("+(hintLevel+1)+" of 3)";}
 function applyAccessibility(){document.body.classList.toggle("large-text",$("largeText").checked);document.body.classList.toggle("reduced-motion",$("reduceMotion").checked);}
-function applyMode(){showBossProject();renderLearningJournal();const task=terminalTasks[progress.mission-1];$("mode").value=learningMode;$("modeDescription").textContent=learningMode==="terminal"?"Practice real Python syntax. Complete the terminal challenge; movement is optional.":learningMode==="code"?"Write Python commands to navigate, collect, and activate objects.": "Explore the RPG while solving guided Python challenges.";resetHints();if(learningMode==="terminal"){$("lesson").textContent=task.lesson;$("objective").textContent="Python challenge: "+task.lesson;}else{$("lesson").textContent=chapter().lesson+(chapter().item?" Collect the "+itemName().toLowerCase()+" with collect().":"")+(chapter().requiresUse?" Use use_item() at the goal.":"");}document.querySelector(".scene-panel").classList.toggle("terminal-secondary",learningMode==="terminal");}
+function applyMode(){lastBossAttempt=null;if($("submitBoss"))$("submitBoss").disabled=true;showBossProject();renderLearningJournal();const task=terminalTasks[progress.mission-1];$("mode").value=learningMode;$("modeDescription").textContent=learningMode==="terminal"?"Practice real Python syntax. Complete the terminal challenge; movement is optional.":learningMode==="code"?"Write Python commands to navigate, collect, and activate objects.": "Explore the RPG while solving guided Python challenges.";resetHints();if(learningMode==="terminal"){$("lesson").textContent=task.lesson;$("objective").textContent="Python challenge: "+task.lesson;}else{$("lesson").textContent=chapter().lesson+(chapter().item?" Collect the "+itemName().toLowerCase()+" with collect().":"")+(chapter().requiresUse?" Use use_item() at the goal.":"");}document.querySelector(".scene-panel").classList.toggle("terminal-secondary",learningMode==="terminal");}
 const DIRECTIONS=[[1,0],[0,1],[-1,0],[0,-1]];
 let trail=[{...START}],hero={...START},busy=false,animationId=0,inventory=[];
 function setMessage(id,msg){$(id).textContent=msg;}
@@ -146,3 +148,5 @@ if(token)api("/api/me").then(data=>showApp(data.user)).catch(()=>{sessionStorage
 
 if($("bossRefresh"))$("bossRefresh").onclick=loadBossQueue;
 if($("bossFeedbackRefresh"))$("bossFeedbackRefresh").onclick=loadBossFeedback;
+
+if($("submitBoss"))$("submitBoss").onclick=submitBossProject;
