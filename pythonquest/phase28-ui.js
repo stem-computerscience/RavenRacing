@@ -58,11 +58,36 @@ const journal=document.createElement("div");journal.id="pqJournalOverlay";journa
 const demo=[["The Locked Gate","Variables, strings, print()",50,"# Open the gate\n\n# Write your code here",'# Open the gate\npassword = "OPEN"\nprint(password)'],["The Wizard's Message","Strings",40,"# Write a greeting",'greeting = "Hello"\nprint(greeting)'],["Bridge Repair","Conditions",60,"# Check bridge",'planks = 5\nif planks >= 5:\n    print("Safe")'],["Forest Coordinates","Arithmetic",45,"# Calculate location",'x = 4\ny = 6\nprint(x + y)'],["The Ancient Cipher","String indexing",55,"# Decode symbol",'code = "RUNE"\nprint(code[0])']];
 let chosen=0;
 function lines(source,highlight){const box=document.createElement("pre");source.split("\n").forEach((line,i)=>{const span=document.createElement("span");span.className=highlight&&i>0?"changed":"normal";span.textContent=String(i+1).padStart(2," ")+"  "+line;box.append(span)});return box}
+const verifiedAttempts=[];
+window.addEventListener("pythonquest:verified-attempt",e=>{
+ const d=e.detail||{};if(!d.id||!d.code)return;
+ const title=$("chapterTitle")?.textContent?.trim()||("Chapter "+d.mission);
+ const starter=$("code")?.defaultValue||"";
+ verifiedAttempts.unshift({id:d.id,title,code:d.code,starter,world:d.world,mode:d.mode,mission:d.mission});
+ if(verifiedAttempts.length>5)verifiedAttempts.length=5;
+});
+window.addEventListener("pythonquest:login",()=>{verifiedAttempts.length=0});
+document.querySelectorAll(".logout").forEach(button=>button.addEventListener("click",()=>{verifiedAttempts.length=0},true));
+let selectedAttempt=0;
 function renderJournal(){
  const root=$("pqPanelBody");root.replaceChildren();
- const intro=document.createElement("p");intro.textContent="Your saved progress is shown below. Completed-code history will appear here once connected to verified attempt records.";root.append(intro);
- const original=$("learningJournal");if(original){const copy=original.cloneNode(true);copy.removeAttribute("id");root.append(copy)}
- const note=document.createElement("p");note.className="pq-small";note.textContent="The five sample solutions have been removed. No sample code is shown as student work.";root.append(note)
+ const summary=$("learningJournal");if(summary){const copy=summary.cloneNode(true);copy.removeAttribute("id");root.append(copy)}
+ const heading=document.createElement("h3");heading.textContent="Recent verified challenges";root.append(heading);
+ const note=document.createElement("p");note.className="pq-small";
+ note.textContent="This session only. Attempts are recorded on the server, but earlier saved code is not yet available to this review panel.";root.append(note);
+ if(!verifiedAttempts.length){const p=document.createElement("p");p.textContent="No successful server-recorded challenges in this session yet.";root.append(p);return}
+ selectedAttempt=Math.min(selectedAttempt,verifiedAttempts.length-1);
+ const grid=document.createElement("div");grid.className="pq-review";
+ const list=document.createElement("div");list.className="pq-recent";
+ verifiedAttempts.forEach((entry,i)=>{const b=document.createElement("button");b.type="button";b.textContent=entry.title+" · "+entry.world;b.setAttribute("aria-current",String(i===selectedAttempt));b.onclick=()=>{selectedAttempt=i;renderJournal()};list.append(b)});
+ grid.append(list);
+ const entry=verifiedAttempts[selectedAttempt],review=document.createElement("section");
+ const title=document.createElement("h3");title.textContent=entry.title;review.append(title);
+ const info=document.createElement("p");info.textContent="Chapter "+entry.mission+" · "+entry.mode+" · server-recorded";review.append(info);
+ const pair=document.createElement("div");pair.className="pq-code-pair";
+ const pane=document.createElement("div");pane.className="pq-code";const label=document.createElement("strong");label.textContent="COMPLETED CODE";pane.append(label,lines(entry.code,false));pair.append(pane);review.append(pair);
+ const explanation=document.createElement("p");explanation.className="pq-small";explanation.textContent="Original starter code is not retained by the current attempt event, so no unverified comparison is shown.";review.append(explanation);
+ grid.append(review);root.append(grid)
 }
 function openPanel(name){$("pqPanelTitle").textContent=name==="Journal"?"Quest Journal":name;journal.hidden=false;document.querySelector("#pqJournalModal").style.borderColor=($("world")?.value==="dungeon"?"#c7a367":"#4bc9e1");if(name==="Journal")renderJournal();else{const root=$("pqPanelBody");root.replaceChildren();const p=document.createElement("p");p.textContent=name+" visual shell — existing game progress and data are unchanged.";root.append(p);if(name==="Progress"){const existing=$("progress");if(existing){const q=document.createElement("p");q.textContent=existing.textContent;root.append(q)}}}}
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){journal.hidden=true;ref.hidden=true;return}if(/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;if(e.key.toLowerCase()==="j")openPanel("Journal");if(e.key.toLowerCase()==="m")openPanel("Map")});
