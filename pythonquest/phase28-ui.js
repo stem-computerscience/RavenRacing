@@ -55,8 +55,6 @@ const hintSeen=new Set();if(hintText){new MutationObserver(()=>{if(hintText.hidd
 const success=document.createElement("div");success.id="pqSuccess";success.hidden=true;success.innerHTML='<strong>Challenge Complete!</strong><p>Python skill progress · See Progress for details.</p><button type="button" id="pqContinue">Continue Exploring</button>';const output=$("output");if(output)output.after(success);
 $("pqContinue").onclick=()=>{success.hidden=true;ref.hidden=true;const scene=document.querySelector(".scene-panel");scene?.scrollIntoView({behavior:"smooth",block:"nearest"})};
 const journal=document.createElement("div");journal.id="pqJournalOverlay";journal.hidden=true;journal.innerHTML='<section id="pqJournalModal" role="dialog" aria-modal="true" aria-label="Quest Journal"><div class="pq-head"><h2 id="pqPanelTitle">Quest Journal</h2><button type="button" id="pqPanelClose">Close ×</button></div><div id="pqPanelBody"></div></section>';document.body.append(journal);$("pqPanelClose").onclick=()=>journal.hidden=true;journal.addEventListener("click",e=>{if(e.target===journal)journal.hidden=true});
-const demo=[["The Locked Gate","Variables, strings, print()",50,"# Open the gate\n\n# Write your code here",'# Open the gate\npassword = "OPEN"\nprint(password)'],["The Wizard's Message","Strings",40,"# Write a greeting",'greeting = "Hello"\nprint(greeting)'],["Bridge Repair","Conditions",60,"# Check bridge",'planks = 5\nif planks >= 5:\n    print("Safe")'],["Forest Coordinates","Arithmetic",45,"# Calculate location",'x = 4\ny = 6\nprint(x + y)'],["The Ancient Cipher","String indexing",55,"# Decode symbol",'code = "RUNE"\nprint(code[0])']];
-let chosen=0;
 function changedLineIndices(before,after){
  const a=before.split("\\n"),b=after.split("\\n");
  // LCS: unchanged lines are aligned even when earlier lines are inserted/deleted.
@@ -82,8 +80,8 @@ window.addEventListener("pythonquest:verified-attempt",e=>{
  verifiedAttempts.unshift({id:d.id,title,code:d.code,starter,world:d.world,mode:d.mode,mission:d.mission});
  if(verifiedAttempts.length>5)verifiedAttempts.length=5;
 });
-window.addEventListener("pythonquest:login",()=>{verifiedAttempts.length=0;success.hidden=true;hintSeen.clear();hintHistory.replaceChildren();hintHistory.hidden=true});
-document.querySelectorAll(".logout").forEach(button=>button.addEventListener("click",()=>{verifiedAttempts.length=0},true));
+window.addEventListener("pythonquest:login",()=>{verifiedAttempts.length=0;selectedAttempt=0;journal.hidden=true;ref.hidden=true;success.hidden=true;hintSeen.clear();hintHistory.replaceChildren();hintHistory.hidden=true;$("pqPanelBody").replaceChildren()});
+document.querySelectorAll(".logout").forEach(button=>button.addEventListener("click",()=>{verifiedAttempts.length=0;selectedAttempt=0;journal.hidden=true;ref.hidden=true;success.hidden=true;$("pqPanelBody").replaceChildren()},true));
 let selectedAttempt=0;
 function renderJournal(){
  const root=$("pqPanelBody");root.replaceChildren();
