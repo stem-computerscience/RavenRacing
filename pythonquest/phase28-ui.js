@@ -80,7 +80,21 @@ window.addEventListener("pythonquest:verified-attempt",e=>{
  verifiedAttempts.unshift({id:d.id,title,code:d.code,starter,world:d.world,mode:d.mode,mission:d.mission});
  if(verifiedAttempts.length>5)verifiedAttempts.length=5;
 });
-window.addEventListener("pythonquest:login",()=>{verifiedAttempts.length=0;selectedAttempt=0;journal.hidden=true;ref.hidden=true;success.hidden=true;hintSeen.clear();hintHistory.replaceChildren();hintHistory.hidden=true;$("pqPanelBody").replaceChildren()});
+let historyError="";
+window.addEventListener("pythonquest:attempt-history",e=>{
+ historyError="";
+ const rows=Array.isArray(e.detail?.attempts)?e.detail.attempts:[];
+ const existing=new Set(verifiedAttempts.map(a=>a.id));
+ rows.forEach(d=>{if(!d.id||typeof d.code!=="string"||existing.has(d.id))return;verifiedAttempts.push({id:d.id,title:d.title||("Chapter "+d.mission),code:d.code,starter:d.starter||"",world:d.world,mode:d.mode,mission:d.mission,created_at:d.created_at})});
+ verifiedAttempts.sort((a,b)=>String(b.created_at||"").localeCompare(String(a.created_at||"")));
+ verifiedAttempts.splice(5);
+ if(!journal.hidden&&$("pqPanelTitle").textContent==="Quest Journal")renderJournal()
+});
+window.addEventListener("pythonquest:attempt-history-error",e=>{
+ historyError="Previous submissions could not be loaded: "+(e.detail?.message||"Unknown error");
+ if(!journal.hidden&&$("pqPanelTitle").textContent==="Quest Journal")renderJournal()
+});
+window.addEventListener("pythonquest:login",()=>{historyError="";verifiedAttempts.length=0;selectedAttempt=0;journal.hidden=true;ref.hidden=true;success.hidden=true;hintSeen.clear();hintHistory.replaceChildren();hintHistory.hidden=true;$("pqPanelBody").replaceChildren()});
 document.querySelectorAll(".logout").forEach(button=>button.addEventListener("click",()=>{verifiedAttempts.length=0;selectedAttempt=0;journal.hidden=true;ref.hidden=true;success.hidden=true;$("pqPanelBody").replaceChildren()},true));
 let selectedAttempt=0;
 function renderJournal(){
@@ -88,8 +102,8 @@ function renderJournal(){
  const summary=$("learningJournal");if(summary){const copy=summary.cloneNode(true);copy.removeAttribute("id");root.append(copy)}
  const heading=document.createElement("h3");heading.textContent="Recent verified challenges";root.append(heading);
  const note=document.createElement("p");note.className="pq-small";
- note.textContent="This session only. Attempts are recorded on the server, but earlier saved code is not yet available to this review panel.";root.append(note);
- if(!verifiedAttempts.length){const p=document.createElement("p");p.textContent="No successful server-recorded challenges in this session yet.";root.append(p);return}
+ note.textContent=historyError||"Five most recent saved successful attempts, including earlier sessions when the history service is available.";root.append(note);
+ if(!verifiedAttempts.length){const p=document.createElement("p");p.textContent="No saved successful challenges are available yet.";root.append(p);return}
  selectedAttempt=Math.min(selectedAttempt,verifiedAttempts.length-1);
  const grid=document.createElement("div");grid.className="pq-review";
  const list=document.createElement("div");list.className="pq-recent";
