@@ -62,7 +62,7 @@ function renderClubRewards(){
 }
 async function loadClubLeaderboard(){
  const root=$("clubLeaderboard");if(!root)return;root.textContent="Loading…";
- try{const data=await api("/api/leaderboard");root.replaceChildren();if(!data.players.length){root.textContent="No members have opted in yet.";return;}const list=document.createElement("ol");for(const player of data.players){const li=document.createElement("li");li.textContent=player.username+" · "+player.xp+" XP · Chapter "+player.chapter;list.append(li);}root.append(list);}catch(e){root.textContent="Could not load leaderboard: "+e.message;}
+ try{const data=await api("/api/leaderboard");root.replaceChildren();if(!data.players.length){root.textContent="No members have opted in yet.";return;}const list=document.createElement("ol");for(const player of data.players){const li=document.createElement("li");li.textContent=player.nickname+" · "+player.xp+" XP · Chapter "+player.chapter;list.append(li);}root.append(list);}catch(e){root.textContent="Could not load leaderboard: "+e.message;}
 }
 async function changeLeaderboardOptIn(){const box=$("leaderboardOptIn");if(!box)return;box.disabled=true;try{const data=await api("/api/leaderboard/opt-in","POST",{optIn:box.checked});progress.leaderboardOptIn=data.optIn;await loadClubLeaderboard();}catch(e){box.checked=progress.leaderboardOptIn===true;setMessage("status","Leaderboard preference could not be saved: "+e.message);}finally{box.disabled=false;}}
 function renderLearningJournal(){
