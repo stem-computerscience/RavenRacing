@@ -24,6 +24,22 @@ async function logPythonAttempt(code,mission,world,mode,result,success){
  try{await api("/api/attempts","POST",{code:code.slice(0,12000),mission,world,mode,output:String(result.ok?result.output||"":result.error||"").slice(0,4000),success,evidence:result.assessment||null});}
  catch(e){setMessage("attemptStatus","Attempt could not be saved: "+e.message);}
 }
+async function loadBossFeedback(){
+ const root=$("bossFeedback");if(!root)return;root.textContent="Loading feedback…";
+ try{const data=await api("/api/boss/feedback");root.replaceChildren();if(!data.feedback.length){root.textContent="No teacher-graded boss projects yet.";return;}
+ for(const item of data.feedback){const box=document.createElement("article"),h=document.createElement("h3"),p=document.createElement("p");h.textContent="Boss chapter "+item.mission+" · "+item.rubric.total+"/100";p.textContent="Correctness "+item.rubric.correctness+"/40 · Concepts "+item.rubric.concepts+"/30 · Quality "+item.rubric.quality+"/20 · Problem-solving "+item.rubric.problemSolving+"/10";const note=document.createElement("p");note.textContent="Teacher feedback: "+(item.rubric.feedback||"No written feedback")+" · "+(item.approved?"Approved to advance":"Awaiting approval");box.append(h,p,note);root.append(box);}}
+ catch(e){root.textContent="Could not load feedback: "+e.message;}
+}
+async function loadBossQueue(){
+ const root=$("bossQueue");if(!root)return;root.textContent="Loading boss projects…";
+ try{const data=await api("/api/boss/submissions");root.replaceChildren();if(!data.submissions.length){root.textContent="No boss submissions yet.";return;}
+ for(const item of data.submissions){const panel=document.createElement("details"),heading=document.createElement("summary"),code=document.createElement("pre"),output=document.createElement("pre"),status=document.createElement("p");
+ heading.textContent=item.username+" · Boss "+item.mission+" · "+item.created_at+" · "+item.status;code.textContent=item.code;output.textContent="Program output: "+item.output;status.textContent="Current status: "+item.status;
+ const grade=document.createElement("button");grade.type="button";grade.textContent="Grade project";grade.onclick=async()=>{const categories=[["correctness",40],["concepts",30],["quality",20],["problemSolving",10]],scores={};for(const [key,max] of categories){const input=prompt(key+" (0–"+max+")",String(item.evidence?.teacherRubric?.[key]??0));if(input===null)return;const value=Number(input);if(!Number.isInteger(value)||value<0||value>max){status.textContent="Invalid "+key+" score.";return;}scores[key]=value;}const feedback=prompt("Teacher feedback and suggested fixes",item.evidence?.teacherRubric?.feedback||"");if(feedback===null)return;try{const result=await api("/api/attempts/"+item.id+"/grade","POST",{scores,feedback});item.evidence.teacherRubric=result.grade;status.textContent="Teacher grade: "+result.grade.total+"/100. "+(result.grade.passing?"Eligible for approval.":"Student should revise.");}catch(e){status.textContent=e.message;}};
+ const approve=document.createElement("button");approve.type="button";approve.textContent="Approve passing project";approve.onclick=async()=>{const reason=prompt("Approval rationale (at least 10 characters)");if(reason===null)return;try{await api("/api/attempts/"+item.id+"/approve","POST",{reason});status.textContent="Approved. Student can advance once the next region is released.";heading.textContent=item.username+" · Boss "+item.mission+" · approved";}catch(e){status.textContent=e.message;}};
+ panel.append(heading,code,output,status,grade,approve);root.append(panel);}}
+ catch(e){root.textContent="Could not load boss submissions: "+e.message;}
+}
 function renderLearningJournal(){
  const root=$("learningJournal");if(!root||!user||user.role!=="student")return;
  root.replaceChildren();
@@ -125,3 +141,6 @@ $("createStudent").onsubmit=async e=>{e.preventDefault();try{await api("/api/stu
 const flaggedButton=$("flaggedRefresh");if(flaggedButton)flaggedButton.onclick=async()=>{const root=$("flaggedQueue");root.textContent="Loading flagged attempts…";try{const data=await api("/api/teacher/flagged-attempts");root.replaceChildren();if(!data.flagged.length){root.textContent="No flagged attempts in the most recent 300 records.";return;}for(const item of data.flagged){const line=document.createElement("p");line.textContent=item.username+" · Chapter "+item.mission+" · "+item.mode+" · "+item.reason;root.append(line);}}catch(e){root.textContent="Could not load flagged attempts: "+e.message;}};
 $("refresh").onclick=refreshStudents;
 if(token)api("/api/me").then(data=>showApp(data.user)).catch(()=>{sessionStorage.removeItem("pq_token");token=null;});
+
+if($("bossRefresh"))$("bossRefresh").onclick=loadBossQueue;
+if($("bossFeedbackRefresh"))$("bossFeedbackRefresh").onclick=loadBossFeedback;
