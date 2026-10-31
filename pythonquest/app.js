@@ -48,6 +48,23 @@ async function loadBossQueue(){
  panel.append(heading,code,output,status,ack);root.append(panel);}}
  catch(e){root.textContent="Could not load projects: "+e.message;}
 }
+const CLUB_BADGES=[
+ {name:"First Steps",chapter:2,description:"Completed your first mission"},
+ {name:"Trailblazer",chapter:3,description:"Reached Chapter 3"},
+ {name:"Boss Explorer",chapter:5,description:"Completed the first boss project"},
+ {name:"Python Pathfinder",chapter:6,description:"Reached Chapter 6"}
+];
+function renderClubRewards(){
+ const root=$("clubRewards");if(!root||!user||user.role!=="student")return;
+ root.replaceChildren();const summary=document.createElement("p");summary.textContent=progress.xp+" XP · "+CLUB_BADGES.filter(b=>progress.mission>=b.chapter).length+" of "+CLUB_BADGES.length+" badges earned";root.append(summary);
+ const list=document.createElement("ul");for(const badge of CLUB_BADGES){const li=document.createElement("li"),earned=progress.mission>=badge.chapter;li.textContent=(earned?"Earned: ":"Locked: ")+badge.name+" — "+badge.description;list.append(li);}root.append(list);
+ const opt=$("leaderboardOptIn");if(opt)opt.checked=progress.leaderboardOptIn===true;
+}
+async function loadClubLeaderboard(){
+ const root=$("clubLeaderboard");if(!root)return;root.textContent="Loading…";
+ try{const data=await api("/api/leaderboard");root.replaceChildren();if(!data.players.length){root.textContent="No members have opted in yet.";return;}const list=document.createElement("ol");for(const player of data.players){const li=document.createElement("li");li.textContent=player.username+" · "+player.xp+" XP · Chapter "+player.chapter;list.append(li);}root.append(list);}catch(e){root.textContent="Could not load leaderboard: "+e.message;}
+}
+async function changeLeaderboardOptIn(){const box=$("leaderboardOptIn");if(!box)return;box.disabled=true;try{const data=await api("/api/leaderboard/opt-in","POST",{optIn:box.checked});progress.leaderboardOptIn=data.optIn;await loadClubLeaderboard();}catch(e){box.checked=progress.leaderboardOptIn===true;setMessage("status","Leaderboard preference could not be saved: "+e.message);}finally{box.disabled=false;}}
 function renderLearningJournal(){
  const root=$("learningJournal");if(!root||!user||user.role!=="student")return;
  root.replaceChildren();
@@ -55,7 +72,7 @@ function renderLearningJournal(){
  const description=document.createElement("p");description.textContent="Recorded skills come from completed Terminal-Focused challenges. A chapter or XP total alone does not demonstrate mastery.";
  const list=document.createElement("ul");list.className="journal-skills";
  SKILL_NAMES.forEach((name,i)=>{const li=document.createElement("li");const recorded=Array.isArray(progress.skills)&&progress.skills.includes(i+1);li.textContent=(recorded?"Recorded: ":"Not yet recorded: ")+name;li.className=recorded?"journal-recorded":"journal-pending";list.append(li);});
- root.append(summary,description,list);
+ root.append(summary,description,list);renderClubRewards();
 }
 function showRegionStatus(){const region=Math.ceil(progress.mission/4);const released=progress.releasedRegion||1;const el=$("regionStatus");if(el)el.textContent="Region "+region+" · "+(REGIONS[region-1]?.name||"")+" · "+(region<=released?"Available":"Locked");}
 function canAdvance(){return progress.mission<6&&Math.ceil((progress.mission+1)/4)<=(progress.releasedRegion||1);}
@@ -73,7 +90,7 @@ let trail=[{...START}],hero={...START},busy=false,animationId=0,inventory=[];
 function setMessage(id,msg){$(id).textContent=msg;}
 async function api(path,method="GET",body){const response=await fetch(apiBase()+path,{method,headers:{"content-type":"application/json",...(token?{authorization:"Bearer "+token}:{})},...(body?{body:JSON.stringify(body)}:{})});const result=await response.json();if(!response.ok)throw Error(result.error||"Request failed");return result;}
 function chapter(){return chapters[Math.min(chapters.length-1,Math.max(0,progress.mission-1))];}
-function cleanProgress(data){return {world:data?.world==="dungeon"?"dungeon":"space",mission:Math.max(1,Math.min(6,Math.floor(Number(data?.mission)||1))),xp:Math.max(0,Math.floor(Number(data?.xp)||0)),defaultMode:MODES.includes(data?.defaultMode)?data.defaultMode:"hybrid",skills:Array.isArray(data?.skills)?data.skills.filter(x=>Number.isInteger(x)&&x>=1&&x<=6):[],releasedRegion:Math.max(1,Math.min(2,Number(data?.releasedRegion)||Math.ceil((Number(data?.mission)||1)/4)))};}
+function cleanProgress(data){return {world:data?.world==="dungeon"?"dungeon":"space",mission:Math.max(1,Math.min(6,Math.floor(Number(data?.mission)||1))),xp:Math.max(0,Math.floor(Number(data?.xp)||0)),defaultMode:MODES.includes(data?.defaultMode)?data.defaultMode:"hybrid",skills:Array.isArray(data?.skills)?data.skills.filter(x=>Number.isInteger(x)&&x>=1&&x<=6):[],releasedRegion:Math.max(1,Math.min(2,Number(data?.releasedRegion)||Math.ceil((Number(data?.mission)||1)/4))),leaderboardOptIn:data?.leaderboardOptIn===true};}
 function itemName(){return progress.world==="space"?"Energy cell":"Mana crystal";}
 function simulate(actions){let p={...START},path=[{...p}],error=null,collected=false,used=false;const walls=new Set(chapter().walls.map(a=>a.join(",")));const item=chapter().item;for(const action of actions){if(action==="left")p.dir=(p.dir+3)%4;else if(action==="right")p.dir=(p.dir+1)%4;else if(action==="forward"){const [dx,dy]=DIRECTIONS[p.dir],nx=p.x+dx,ny=p.y+dy;if(nx<0||ny<0||nx>=SIZE||ny>=SIZE){error="Your hero reached the edge of the map.";break;}if(walls.has(nx+","+ny)){error="A wall blocks the path. Try another route.";break;}p.x=nx;p.y=ny;}else if(action==="collect"){if(!item){error="There is nothing to collect in this chapter.";break;}if(p.x!==item[0]||p.y!==item[1]){error="Move onto the collectible before calling collect().";break;}if(collected){error="You already collected this item.";break;}collected=true;}else if(action==="use_item"){if(!collected){error="Collect the quest item before calling use_item().";break;}if(used){error="This item has already been used.";break;}if(!chapter().requiresUse){error="There is no device to activate in this chapter.";break;}const [gx,gy]=chapter().goal;if(p.x!==gx||p.y!==gy){error="Stand on the destination tile before calling use_item().";break;}used=true;}path.push({...p,collected,used});}return {hero:p,trail:path,error,collected,used};}
 function updateInventory(){const el=$("inventory");if(el)el.textContent=inventory.length?inventory.join(" · "):"Empty — collect items with Python";}
@@ -158,3 +175,6 @@ if($("bossFeedbackRefresh"))$("bossFeedbackRefresh").onclick=loadBossFeedback;
 if($("submitBoss"))$("submitBoss").onclick=submitBossProject;
 
 if($("continueBoss"))$("continueBoss").onclick=continueBossProject;
+
+if($("leaderboardOptIn"))$("leaderboardOptIn").onchange=changeLeaderboardOptIn;
+if($("leaderboardRefresh"))$("leaderboardRefresh").onclick=loadClubLeaderboard;
