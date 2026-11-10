@@ -5,7 +5,7 @@ const year = document.querySelector('#year');
 if (year) year.textContent = new Date().getFullYear();
 
 if (menuButton && navLinks) {
-  const mobile = window.matchMedia('(max-width: 820px)');
+  const mobile = window.matchMedia('(max-width: 940px)');
   function setOpen(open, restoreFocus = false) {
     if (restoreFocus) menuButton.focus();
     menuButton.setAttribute('aria-expanded', String(open));
