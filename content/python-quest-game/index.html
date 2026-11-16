@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Python Quest</title>
+<meta name="description" content="Learn Python by playing: write real code to finish missions in space, a dungeon, or a robot factory.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@500;700;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body data-quest="none">
+
+<!-- ============ SIGN IN ============ -->
+<section id="screen-signin" class="screen">
+  <div class="signin">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">&gt;&gt;&gt;</span>
+      <h1>Python Quest</h1>
+      <p class="brand-sub" id="class-name"></p>
+    </div>
+
+    <div id="returning" class="returning" hidden>
+      <h2 class="label">Welcome back</h2>
+      <div id="returning-list" class="returning-list"></div>
+    </div>
+
+    <form id="signin-form" class="signin-form" autocomplete="off">
+      <h2 class="label" id="new-player-label">New player</h2>
+      <div class="field-row">
+        <label class="field">
+          <span>First name + last initial</span>
+          <input id="in-name" maxlength="30" placeholder="Maya R." required>
+        </label>
+        <label class="field field-small">
+          <span>Class period</span>
+          <select id="in-period" required></select>
+        </label>
+      </div>
+
+      <h2 class="label">Choose your adventure</h2>
+      <div class="theme-picks" id="theme-picks" role="radiogroup" aria-label="Adventure"></div>
+
+      <button class="btn btn-big" type="submit" id="btn-start">Start quest</button>
+      <p class="form-msg" id="signin-msg" role="alert"></p>
+    </form>
+    <a class="teacher-link" href="teacher.html">Teacher dashboard</a>
+  </div>
+</section>
+
+<!-- ============ MAP ============ -->
+<section id="screen-map" class="screen" hidden>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <button class="logo-btn" id="btn-logo" title="Switch player"><span aria-hidden="true">&gt;&gt;&gt;</span> Python Quest</button>
+      <div class="player">
+        <div class="player-name" id="hud-name"></div>
+        <div class="xp">
+          <div class="xp-text"><span id="hud-rank"></span> · <b id="hud-xp">0</b> XP</div>
+          <div class="xp-bar"><i id="hud-xpbar"></i></div>
+        </div>
+      </div>
+      <nav class="top-actions">
+        <button class="btn btn-ghost" id="btn-board">Leaderboard</button>
+        <button class="btn btn-ghost" id="btn-turnin">Turn in</button>
+        <button class="btn btn-ghost" id="btn-theme">Change adventure</button>
+      </nav>
+    </div>
+  </header>
+  <main class="map" id="map"></main>
+  <p class="sync-note" id="sync-note"></p>
+</section>
+
+<!-- ============ LEVEL ============ -->
+<section id="screen-level" class="screen" hidden>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <button class="btn btn-ghost" id="btn-back">← Map</button>
+      <div class="level-crumb" id="level-crumb"></div>
+      <div class="xp-mini"><b id="hud-xp2">0</b> XP</div>
+    </div>
+  </header>
+  <main class="level">
+    <aside class="mission">
+      <div class="mission-head">
+        <span class="chip" id="lvl-type"></span>
+        <span class="chip chip-xp" id="lvl-xp"></span>
+      </div>
+      <h1 id="lvl-title"></h1>
+      <p class="story" id="lvl-story"></p>
+      <div class="task" id="lvl-task"></div>
+      <div class="commands" id="lvl-commands" hidden>
+        <span class="label">Commands</span>
+        <div><code>move_right()</code> <code>move_left()</code> <code>move_up()</code> <code>move_down()</code></div>
+      </div>
+      <div class="hints">
+        <div class="hints-head">
+          <span class="label">Stuck?</span>
+          <button class="btn btn-small" id="btn-hint">Show hint 1</button>
+        </div>
+        <ol class="hint-list" id="hint-list"></ol>
+      </div>
+      <div class="feedback" id="feedback" hidden></div>
+    </aside>
+
+    <section class="workbench">
+      <div class="board-wrap" id="board-wrap" hidden><div class="board" id="board"></div></div>
+
+      <div class="predict" id="predict" hidden>
+        <pre class="code-view" id="predict-code"></pre>
+        <p class="label">What does it print?</p>
+        <div class="choices" id="choices"></div>
+      </div>
+
+      <div class="editor-wrap" id="editor-wrap">
+        <div class="editor-bar">
+          <span class="file">main.py</span>
+          <span class="editor-tip">Tab indents · Ctrl+Enter checks</span>
+        </div>
+        <div class="editor">
+          <pre class="gutter" id="gutter" aria-hidden="true">1</pre>
+          <div class="code-area">
+            <pre class="hl" id="hl" aria-hidden="true"></pre>
+            <textarea id="code" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Python code"></textarea>
+          </div>
+        </div>
+        <div class="run-bar">
+          <button class="btn btn-ghost" id="btn-reset" title="Put the starting code back">Reset</button>
+          <span class="spacer"></span>
+          <button class="btn btn-alt" id="btn-run">▶ Run</button>
+          <button class="btn" id="btn-check">Check my code</button>
+        </div>
+      </div>
+
+      <div class="console-wrap" id="console-wrap">
+        <div class="console-bar"><span>Output</span><button class="btn btn-small btn-ghost" id="btn-clear">Clear</button></div>
+        <div class="console" id="console" aria-live="polite"></div>
+      </div>
+    </section>
+  </main>
+</section>
+
+<!-- ============ MODALS ============ -->
+<div class="modal" id="modal" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <button class="modal-x" id="modal-x" aria-label="Close">×</button>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<div class="loading" id="loading">Loading Python…</div>
+
+<script src="js/config.js"></script>
+<script src="vendor/skulpt.min.js"></script>
+<script src="vendor/skulpt-stdlib.js"></script>
+<script src="js/themes.js"></script>
+<script src="js/levels.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/sync.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
