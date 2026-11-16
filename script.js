@@ -73,10 +73,13 @@ if (raceTimers.length) {
       else if (now >= race.start) html = '<div class="race-status">Race day!</div>';
       else {
         const sd = schoolDaysLeft(race, now);
-        let s = Math.floor((race.start - now) / 1000) % 86400;
+        const total = Math.floor((race.start - now) / 1000);
+        const d = Math.floor(total / 86400);
+        let s = total % 86400;
         const h = Math.floor(s / 3600); s -= h * 3600;
         const m = Math.floor(s / 60); s -= m * 60;
-        html = unit(sd, sd === 1 ? 'School Day' : 'School Days') + unit(pad(h), 'Hrs') + unit(pad(m), 'Min') + unit(pad(s), 'Sec');
+        html = unit(sd, sd === 1 ? 'School Day' : 'School Days') + unit(d, d === 1 ? 'Day' : 'Days') +
+          unit(pad(h), 'Hrs') + unit(pad(m), 'Min') + unit(pad(s), 'Sec');
         el.classList.toggle('alert', sd <= 5);
         el.classList.toggle('warn', sd > 5 && sd <= 15);
       }
