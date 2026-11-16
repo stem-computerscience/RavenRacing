@@ -416,6 +416,58 @@ section { padding: 72px 0; }
   color: var(--gray-400);
 }
 
+/* race countdown (home) */
+.race-card { text-align: center; }
+.race-card:hover { transform: none; box-shadow: var(--shadow-md); }
+.race-tag {
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--green-500);
+}
+.race-card h3 { font-size: 1.6rem; margin: 4px 0 18px; }
+.race-timer { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
+.race-unit {
+  background: var(--navy-900);
+  color: var(--white);
+  border-radius: var(--radius-md);
+  padding: 12px 10px 10px;
+  min-width: 72px;
+}
+.race-unit:first-child { min-width: 110px; background: var(--green-500); }
+.race-num {
+  font-family: var(--font-display);
+  font-size: 2.2rem;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.race-lbl {
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gray-100);
+  margin-top: 6px;
+}
+/* 15 or fewer school days: yellow; 5 or fewer: red */
+.race-timer.warn .race-unit:first-child { background: #ffc928; color: var(--navy-900); }
+.race-timer.warn .race-unit:first-child .race-lbl { color: var(--navy-900); }
+.race-timer.alert .race-unit:first-child { background: #c81e26; }
+.race-status {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--green-500);
+}
+.race-more { text-align: center; margin: 32px 0 0; }
+@media (max-width: 480px) {
+  .race-unit { min-width: 60px; padding: 10px 6px 8px; }
+  .race-unit:first-child { min-width: 92px; }
+  .race-num { font-size: 1.8rem; }
+}
+
 /* timeline (seasons) */
 .timeline { position: relative; margin-left: 20px; padding-left: 30px; border-left: 3px solid var(--gray-100); }
 .timeline-item { position: relative; padding-bottom: 40px; }
