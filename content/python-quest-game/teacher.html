@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Python Quest Teacher Dashboard</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@500;700;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/teacher.css">
+</head>
+<body data-quest="none" class="teacher">
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="logo-btn" href="index.html"><span aria-hidden="true">&gt;&gt;&gt;</span> Python Quest</a>
+    <span class="t-role">Teacher dashboard</span>
+  </div>
+</header>
+
+<main class="t-main">
+  <section class="t-card t-connect">
+    <div class="t-connect-text">
+      <h1>Class progress</h1>
+      <p id="t-source" class="muted"></p>
+    </div>
+    <form id="t-key-form" class="t-key" autocomplete="off">
+      <label class="field">
+        <span>Teacher key</span>
+        <input id="t-key" type="password" placeholder="The key from your Apps Script">
+      </label>
+      <button class="btn" type="submit">Load class</button>
+    </form>
+    <p class="t-msg" id="t-msg" role="status"></p>
+  </section>
+
+  <section class="t-tiles" id="t-tiles"></section>
+
+  <section class="t-card">
+    <div class="t-controls">
+      <label class="field field-small"><span>Period</span><select id="t-period"></select></label>
+      <label class="field"><span>Search</span><input id="t-search" placeholder="Student name"></label>
+      <div class="t-buttons">
+        <button class="btn btn-ghost" id="t-refresh" type="button">Refresh</button>
+        <button class="btn btn-ghost" id="t-csv" type="button">Export CSV</button>
+      </div>
+    </div>
+
+    <h2 class="t-h2">Level completion</h2>
+    <p class="muted t-note">Share of the students shown who finished each level. Low bars right after high ones point to where the class gets stuck.</p>
+    <div class="t-levels" id="t-levels"></div>
+
+    <h2 class="t-h2">Students</h2>
+    <div class="t-table-wrap">
+      <table class="t-table">
+        <thead>
+          <tr>
+            <th data-sort="name">Name</th><th data-sort="period">Period</th><th data-sort="xp" class="num">XP</th>
+            <th data-sort="levels" class="num">Levels</th><th>Worlds</th><th data-sort="hints" class="num">Hints</th>
+            <th data-sort="updated">Last active</th><th>Adventure</th>
+          </tr>
+        </thead>
+        <tbody id="t-body"></tbody>
+      </table>
+    </div>
+    <p class="muted t-empty" id="t-empty" hidden></p>
+  </section>
+
+  <section class="t-card">
+    <h2 class="t-h2">Add turn-in codes</h2>
+    <p class="muted">Students who play without the class sheet can press <b>Turn in</b> and send you a code. Paste one or many codes here (one per line). They're saved in this browser.</p>
+    <textarea id="t-codes" rows="4" class="t-codes" placeholder="PQ-eyJuIjoiTWF5YSBSLiIsInAiOiIzIi..."></textarea>
+    <div class="t-buttons">
+      <button class="btn" id="t-import" type="button">Add codes</button>
+      <button class="btn btn-ghost" id="t-clear-codes" type="button">Remove pasted codes</button>
+      <span class="t-msg" id="t-import-msg" role="status"></span>
+    </div>
+  </section>
+</main>
+
+<script src="js/config.js"></script>
+<script src="js/themes.js"></script>
+<script src="js/levels.js"></script>
+<script src="js/sync.js"></script>
+<script src="js/teacher.js"></script>
+</body>
+</html>
