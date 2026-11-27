@@ -702,7 +702,14 @@ async function pageTeacher() {
   $("#cls").onchange = async (e) => { T.classId = e.target.value; await loadTeacher(); pageTeacher(); };
   $("#addcls").onclick = () => {
     const { el, close } = openModal(`<h2 id="modal-title">${t("addClass")}</h2><label>${t("className")}<input type="text" id="cn" maxlength="40" autofocus></label><div class="row"><button class="btn primary" id="ok">${t("create")}</button><button class="btn ghost" data-close>${t("close")}</button></div>`);
-    $("#ok", el).onclick = async () => { const r = await api("POST", "/api/teacher/classes", { name: $("#cn", el).value || "New class" }); T.classId = r.id; close(); await loadTeacher(); pageTeacher(); };
+    $("#cn", el).insertAdjacentHTML("afterend", `<span class="small" id="cnerr" role="alert" style="color:var(--bad)"></span>`);
+    $("#ok", el).onclick = async () => {
+      const name = $("#cn", el).value.replace(/\s+/g, " ").trim();
+      const taken = D.classes.some((c) => c.name.trim().toLowerCase() === name.toLowerCase());
+      if (!name || taken) { $("#cnerr", el).textContent = name ? t("classNameTaken", name) : t("classNameEmpty"); $("#cn", el).focus(); return; }
+      try { const r = await api("POST", "/api/teacher/classes", { name }); T.classId = r.id; close(); await loadTeacher(); pageTeacher(); }
+      catch (e) { $("#cnerr", el).textContent = e.message === "class_name_taken" ? t("classNameTaken", name) : t("oops"); }
+    };
   };
   $("#delcls")?.addEventListener("click", () => {
     const { el, close } = openModal(`<h2 id="modal-title">${t("removeClass")}</h2><p>${esc(t("removeClassHelp", L[cur.id]))}</p>
