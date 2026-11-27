@@ -727,7 +727,8 @@ function tabProgress(el, D) {
   const stuck = D.students.filter((s) => Object.values(s.progress).some(isStuck));
   el.innerHTML = `${stuck.length ? `<div class="result bad" style="margin:12px 0">${t("stuck")}: ${stuck.map((s) => esc(s.name)).join(", ")}</div>` : ""}
     <div class="panel scroll" style="margin-top:12px"><table><thead><tr><th>${t("student")}</th>${ITEMS.map((i) => `<th title="${esc(tx(LEVELS[i.id].title))}">${i.short}</th>`).join("")}<th class="num">${t("xp")}</th></tr></thead><tbody>
-    ${D.students.map((s) => `<tr><td><button class="btn ghost small" data-stu="${esc(s.id)}">${whoHTML(s)}</button><br><span class="small muted">${GAME_TYPES[s.game_type] ? esc(tx(GAME_TYPES[s.game_type].name)) : "–"}${classOf(s)}</span></td>${ITEMS.map((i) => {
+    ${D.students.map((s) => `<tr><td><button class="btn ghost small" data-stu="${esc(s.id)}">${whoHTML(s)}</button><br><span class="small muted">${GAME_TYPES[s.game_type] ? esc(tx(GAME_TYPES[s.game_type].name)) : "–"}${classOf(s)}</span>
+      <br><button class="btn primary small" data-stu="${esc(s.id)}" style="margin-top:4px">👁 ${t("seeWork")}</button></td>${ITEMS.map((i) => {
       const p = s.progress[i.id]; const cls = !p ? "none" : isStuck(p) ? "stuck" : p.status;
       const lab = !p ? "–" : p.status === "done" ? "✓" : p.status === "skipped" ? "S" : "…";
       return `<td><span class="cell ${cls}" title="${esc(tx(LEVELS[i.id].title))}${p ? ` · attempts ${p.attempts} · hints ${p.hints_used}` : ""}">${lab}</span></td>`;
@@ -776,7 +777,7 @@ function tabStudents(el, D) {
     <div class="panel scroll" style="margin-top:12px"><h2 style="margin-top:0">${t("students")} (${D.students.length})</h2><table class="stack"><thead><tr><th>${t("student")}</th><th>${t("username")}</th><th>${t("className")}</th>${T.showPw ? `<th>${t("password")}</th>` : ""}<th class="num">${t("xp")}</th><th></th></tr></thead><tbody>
     ${D.students.length ? "" : `<tr><td colspan="5" class="muted">${t("noStudents")}</td></tr>`}
     ${D.students.map((s) => `<tr><td data-l="${t("student")}">${whoHTML(s)}</td><td data-l="${t("username")}"><code>${esc(s.username)}</code></td><td data-l="${t("className")}">${esc(L[s.class_id] || "")}</td>${T.showPw ? `<td data-l="${t("password")}">${T.pw?.[s.id] ? `<code>${esc(T.pw[s.id])}</code>` : `<span class="small muted">${t("resetToSee")}</span>`}</td>` : ""}<td class="num" data-l="${t("xp")}">${s.xp}</td>
-      <td><div class="row"><button class="btn small" data-stu="${esc(s.id)}">${t("viewCode")}</button><button class="btn small" data-pw="${esc(s.id)}">${t("resetPw")}</button><button class="btn ghost small" data-del="${esc(s.id)}" data-name="${esc(s.name)}">${t("del")}</button></div></td></tr>`).join("")}
+      <td><div class="row"><button class="btn primary small" data-stu="${esc(s.id)}">👁 ${t("seeWork")}</button><button class="btn small" data-pw="${esc(s.id)}">${t("resetPw")}</button><button class="btn ghost small" data-del="${esc(s.id)}" data-name="${esc(s.name)}">${t("del")}</button></div></td></tr>`).join("")}
     </tbody></table></div>`;
   $("#mk").onclick = async () => {
     const students = $("#bulk").value.split("\n").map((l) => l.split(",").map((x) => x.trim())).filter((p) => p[0])
@@ -868,12 +869,13 @@ async function tabClasses(el) {
         <button class="btn small" data-view="${esc(c.id)}">${t("viewClass")}</button>
         <button class="btn small" data-rename="${esc(c.id)}">${t("rename")}</button>
         ${only ? "" : `<button class="btn ghost small" data-delclass="${esc(c.id)}">${t("deleteClass")}</button>`}</div>
-      ${kids.length ? `<div class="scroll" style="margin-top:8px"><table class="stack"><thead><tr><th>${t("student")}</th><th>${t("username")}</th><th>${t("gameCol")}</th><th class="num">${t("level")}</th><th class="num">${t("xp")}</th></tr></thead><tbody>
-        ${kids.map((k) => `<tr><td data-l="${t("student")}">${whoHTML(k)}</td><td data-l="${t("username")}"><code>${esc(k.username)}</code></td><td data-l="${t("gameCol")}">${GAME_TYPES[k.game_type] ? esc(tx(GAME_TYPES[k.game_type].name)) : "–"}</td><td class="num" data-l="${t("level")}">${levelFor(k.xp)}</td><td class="num" data-l="${t("xp")}">${k.xp}</td></tr>`).join("")}
+      ${kids.length ? `<div class="scroll" style="margin-top:8px"><table class="stack"><thead><tr><th>${t("student")}</th><th>${t("username")}</th><th>${t("gameCol")}</th><th class="num">${t("level")}</th><th class="num">${t("xp")}</th><th></th></tr></thead><tbody>
+        ${kids.map((k) => `<tr><td data-l="${t("student")}">${whoHTML(k)}</td><td data-l="${t("username")}"><code>${esc(k.username)}</code></td><td data-l="${t("gameCol")}">${GAME_TYPES[k.game_type] ? esc(tx(GAME_TYPES[k.game_type].name)) : "–"}</td><td class="num" data-l="${t("level")}">${levelFor(k.xp)}</td><td class="num" data-l="${t("xp")}">${k.xp}</td><td><button class="btn primary small" data-stu="${esc(k.id)}">👁 ${t("seeWork")}</button></td></tr>`).join("")}
       </tbody></table></div>` : `<p class="muted" style="margin:8px 0 0">${t("noStudentsInClass")}</p>`}</section>`; }).join("")}
     ${only ? `<p class="small muted">${t("lastClassNote")}</p>` : ""}`;
   const refresh = async () => { await loadTeacher(); await pageTeacher(); };
   $("#addcls2", el).onclick = () => $("#addcls").click();
+  $$("[data-stu]", el).forEach((b) => (b.onclick = () => studentDrawer(b.dataset.stu)));
   $$("[data-view]", el).forEach((b) => (b.onclick = async () => { T.classId = b.dataset.view; T.tab = "progress"; await refresh(); }));
   $$("[data-rename]", el).forEach((b) => (b.onclick = () => {
     const c = all.classes.find((x) => x.id === b.dataset.rename);
@@ -925,28 +927,71 @@ function tabBoard(el, D) {
   el.innerHTML = `<div class="panel" style="margin-top:12px"><h2>${t("weekly").replace(/5/, "")}</h2><ol class="board">${D.board.map((r) => `<li><span class="rank">${r.rank}</span>${avatarHTML(r.avatar, 32)}<span>${esc(r.name)}</span><span class="pts">${r.weekXp} ${t("xp")} · ${r.xp} total</span></li>`).join("")}</ol></div>`;
 }
 
-async function studentDrawer(id) {
-  const d = await api("GET", "/api/teacher/students/" + encodeURIComponent(id));
-  const s = d.student, ids = UNIT.filter((u) => d.progress[u.id]?.code || (u.id === "mygame" && d.game)).map((u) => u.id);
-  let lesson = ids[ids.length - 1] || "l1";
+// ---------- one student's current work and all their progress ----------
+const ago = (ms) => {
+  if (!ms) return "–";
+  const m = Math.round((Date.now() - ms) / 60000);
+  return m < 1 ? t("justNow") : m < 60 ? t("minAgo", m) : m < 1440 ? t("hrAgo", Math.round(m / 60)) : new Date(ms).toLocaleDateString(S.lang);
+};
+async function studentDrawer(id, view = "game") {
+  let d = await api("GET", "/api/teacher/students/" + encodeURIComponent(id));
+  const s = d.student, g = GAME_TYPES[d.game?.template];
+  const curLevel = () => UNIT.find((u) => u.kind !== "side" && !["done", "skipped"].includes(d.progress[u.id]?.status))?.id || "mygame";
+  const titleOf = (lid) => (g?.levels[lid]?.title ? tx(g.levels[lid].title) : tx(LEVELS[lid].title));
+  const m = mastery(d.progress);
   const prev = activeRunner;
-  const { el } = openModal(`<div class="row">${avatarHTML(s.avatar, 48)}<div><h2 id="modal-title" style="margin:0">${esc(s.name)}</h2><span class="small muted">${esc(s.username)} · ${t("level")} ${s.level} · ${s.xp} ${t("xp")}</span></div><span class="spacer"></span><button class="btn ghost small" data-close>${t("close")}</button></div>
-    <div class="row"><label style="flex:1">${t("viewCode")}<select id="ls">${UNIT.map((u) => `<option value="${u.id}" ${u.id === lesson ? "selected" : ""}>${esc(tx(LEVELS[u.id].title))} — ${esc(d.progress[u.id]?.status || "–")}${d.progress[u.id] ? ` (${d.progress[u.id].attempts} tries, ${d.progress[u.id].hints_used} hints)` : ""}</option>`).join("")}</select></label></div>
-    <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,300px);gap:12px" class="drawer">
-      <div><div class="editbox" id="tcode"></div><button class="btn go small" id="trun" style="margin-top:8px">▶ ${t("run")}</button></div>
-      <div><div id="tframe"></div><pre class="console" id="tcon" style="height:70px;margin-top:8px"></pre></div></div>
+  const views = [["game", t("theirGame")], ["boss", t("boss")], ["remix", t("remixLab")]];
+  const { el } = openModal(`<div class="row">${avatarHTML(s.avatar, 48)}<div><h2 id="modal-title" style="margin:0">${esc(s.name)}</h2>
+      <span class="small muted">${esc(s.username)} · ${esc(s.className)} · ${t("lastSeen")} ${ago(s.lastSeen)}</span></div><span class="spacer"></span><button class="btn ghost small" data-close>${t("close")}</button></div>
+    <div class="row">
+      <span class="chip">${t("level")} ${s.level}</span><span class="chip">${s.xp} ${t("xp")}</span><span class="chip">${spriteSVG("coin", 16)} ${s.coins}</span>
+      ${g ? `<span class="chip">${spriteSVG(g.sprite, 16)} ${esc(tx(g.name))}</span>` : `<span class="chip">${t("noGameYet")}</span>`}
+      <span class="chip">★ ${t("workingOn")}: ${esc(titleOf(curLevel()))}</span></div>
+
+    <h3 style="margin:8px 0 0">${t("currentWork")}</h3>
+    <div class="row" role="group">${views.map(([k, l]) => `<button class="btn small ${k === view ? "primary" : "ghost"}" data-view="${k}">${esc(l)}</button>`).join("")}
+      <span class="spacer"></span><span class="small muted" id="saved"></span><button class="btn small" id="trefresh">↻ ${t("refresh")}</button><button class="btn go small" id="trun">▶ ${t("run")}</button></div>
+    <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,320px);gap:12px" class="drawer">
+      <div class="editbox" id="tcode"></div>
+      <div><div id="tframe"></div>${padHTML()}<pre class="console" id="tcon" style="height:70px;margin-top:8px"></pre></div></div>
+
+    <h3 style="margin:8px 0 0">${t("allProgress")}</h3>
+    <div class="scroll"><table class="stack"><thead><tr><th>${t("levelCol")}</th><th>${t("statusCol")}</th><th class="num">${t("tries")}</th><th class="num">${t("hint")}s</th><th class="num">${t("xp")}</th><th>${t("finished")}</th></tr></thead><tbody>
+      ${UNIT.map((u) => { const p = d.progress[u.id]; const st = !p ? "none" : isStuck(p) ? "stuck" : p.status;
+        return `<tr><td data-l="${t("levelCol")}">${esc(titleOf(u.id))}</td>
+          <td data-l="${t("statusCol")}"><span class="cell ${st}" style="width:auto;padding:0 8px">${esc(t("st_" + st))}</span></td>
+          <td class="num" data-l="${t("tries")}">${p?.attempts ?? "–"}</td><td class="num" data-l="${t("hint")}s">${p?.hints_used ?? "–"}</td>
+          <td class="num" data-l="${t("xp")}">${p?.xp_earned || "–"}</td><td data-l="${t("finished")}">${p?.completed_at ? esc(new Date(p.completed_at).toLocaleDateString(S.lang)) : "–"}</td></tr>`; }).join("")}
+    </tbody></table></div>
+    <div class="row">${CONCEPTS.map((c) => `<span class="chip m-${m[c.id]}" title="${esc(c.csta)}">${esc(tx(c))}: ${t(m[c.id])}</span>`).join("")}</div>
+    <div class="row">${BADGES.map((b) => `<span class="chip" style="${s.badges.includes(b.id) ? "" : "opacity:.35"}">★ ${esc(tx(b))}</span>`).join("")}</div>
+    ${d.errors.length ? `<details><summary><b>${t("recentErrors")} (${d.errors.length})</b></summary><ul class="small">${d.errors.map((e) => `<li>${esc(e.kind)} · ${esc(titleOf(e.lesson_id) || "")} · ${ago(e.created_at)}</li>`).join("")}</ul></details>` : ""}
+
     <div class="panel"><h3>${t("leaveNote")}</h3><textarea id="note" rows="2" maxlength="500"></textarea><button class="btn primary small" id="sendnote" style="margin-top:8px">${t("sendNote")}</button>
-      ${d.notes.map((n) => `<p class="small note" style="margin-top:8px">${esc(tx(LEVELS[n.lesson_id]?.title) || n.lesson_id)}: ${esc(n.body)}</p>`).join("")}</div>
+      ${d.notes.map((n) => `<p class="small note" style="margin-top:8px">${esc(titleOf(n.lesson_id) || n.lesson_id)}: ${esc(n.body)}</p>`).join("")}</div>
     <div class="row"><b>${t("bonus")}</b>${[5, 10, 25].map((n) => `<button class="btn gold small" data-bonus="${n}">+${n}</button>`).join("")}
-      <span class="spacer"></span><label class="row" style="font-weight:700">${t("catchUp")}<select id="skipto" style="width:auto">${UNIT.slice(1).map((u) => `<option value="${u.id}">${esc(tx(LEVELS[u.id].title))}</option>`).join("")}</select></label><button class="btn small" id="skip">${t("skip")}</button>
+      <span class="spacer"></span><label class="row" style="font-weight:700">${t("catchUp")}<select id="skipto" style="width:auto">${UNIT.slice(1).map((u) => `<option value="${u.id}">${esc(titleOf(u.id))}</option>`).join("")}</select></label><button class="btn small" id="skip">${t("skip")}</button>
       <button class="btn ghost small" id="pw">${t("resetPw")}</button></div>`, { wide: true, onClose: () => { r.destroy(); activeRunner = prev; } });
-  const codeFor = (l) => l === "boss" ? (d.progress.boss?.code || GAME_TYPES[d.game?.template || "platformer"].boss.starter(langPick(S.lang))) : (d.game?.code || "# " + t("noGameYet"));
-  const host = $("#tcode", el), ed = makeEditor(host, codeFor(lesson), { readOnly: true });
-  const r = new Runner($("#tframe", el)); activeRunner = r;
-  r.on("print", (m) => ($("#tcon", el).textContent += m.lines.join("\n") + "\n")).on("error", (m) => ($("#tcon", el).textContent += `⚠ ${m.line ? "line " + m.line + ": " : ""}${m.message}\n`));
-  $("#ls", el).onchange = (e) => { lesson = e.target.value; ed.set(codeFor(lesson)); };
-  $("#trun", el).onclick = async () => { $("#tcon", el).textContent = ""; const x = await r.run(ed.get()); if (x.type === "error") $("#tcon", el).textContent += `⚠ ${x.line ? "line " + x.line + ": " : ""}${x.message}\n`; };
-  $("#sendnote", el).onclick = async () => { const body = $("#note", el).value.trim(); if (!body) return; await api("POST", "/api/teacher/notes", { studentId: id, lessonId: lesson, body }); toast("✓ " + t("sendNote")); $("#note", el).value = ""; };
+
+  const codeFor = (v) => v === "boss" ? (d.progress.boss?.code || (g || GAME_TYPES.platformer).boss.starter(langPick(S.lang)))
+    : v === "remix" ? (d.remix?.code || "# " + t("noRemixYet")) : (d.game?.code || "# " + t("noGameYet"));
+  const savedAt = (v) => v === "boss" ? d.progress.boss?.updated_at : v === "remix" ? d.remix?.updated_at : d.game?.updated_at;
+  const ed = makeEditor($("#tcode", el), codeFor(view), { readOnly: true });
+  const r = new Runner($("#tframe", el)); activeRunner = r; wirePad(el, r);
+  const con = $("#tcon", el);
+  r.on("print", (x) => (con.textContent += x.lines.join("\n") + "\n")).on("error", (x) => (con.textContent += `⚠ ${x.line ? "line " + x.line + ": " : ""}${x.message}\n`));
+  const show = async () => {
+    const code = codeFor(view);
+    ed.set(code); $("#saved", el).textContent = t("savedAgo", ago(savedAt(view)));
+    $$("[data-view]", el).forEach((b) => (b.className = "btn small " + (b.dataset.view === view ? "primary" : "ghost")));
+    if (view === "game") { const mk = markerRe(curLevel()).exec(code); if (mk) ed.goto(code.slice(0, mk.index).split("\n").length); }
+    con.textContent = ""; const x = await r.run(code); if (x.type === "error") con.textContent += `⚠ ${x.line ? "line " + x.line + ": " : ""}${x.message}\n`;
+  };
+  show();
+  $$("[data-view]", el).forEach((b) => (b.onclick = () => { view = b.dataset.view; show(); }));
+  $("#trun", el).onclick = async () => { con.textContent = ""; const x = await r.run(ed.get()); if (x.type === "error") con.textContent += `⚠ ${x.line ? "line " + x.line + ": " : ""}${x.message}\n`; };
+  $("#trefresh", el).onclick = async () => { d = await api("GET", "/api/teacher/students/" + encodeURIComponent(id)); show(); toast("↻ " + t("refresh")); };
+  $("#sendnote", el).onclick = async () => { const body = $("#note", el).value.trim(); if (!body) return; await api("POST", "/api/teacher/notes", { studentId: id, lessonId: view === "boss" ? "boss" : curLevel(), body }); toast("✓ " + t("sendNote")); $("#note", el).value = ""; };
   $$("[data-bonus]", el).forEach((b) => (b.onclick = async () => { await api("POST", `/api/teacher/students/${encodeURIComponent(id)}/bonus`, { amount: +b.dataset.bonus, reason: "teacher" }); toast(`+${b.dataset.bonus} ${t("xp")} → ${s.name}`); T.at = 0; }));
   $("#skip", el).onclick = async () => { const x = await api("POST", `/api/teacher/students/${encodeURIComponent(id)}/skip`, { lessonId: $("#skipto", el).value }); toast(`✓ ${t("skip")} (${x.skipped})`); T.at = 0; };
   $("#pw", el).onclick = () => resetPw(id);
