@@ -280,6 +280,151 @@ export const USES = {
   mygame: ["conditionals", "functions", "loops", "lists", "variables"],
 };
 
+// More detail for each concept: the rules to remember, a common mistake (wrong → right), and new words.
+export const CONCEPT_DETAILS = {
+  variables: {
+    points: T([
+      "Names can use letters, numbers and _ but can't start with a number or have spaces: player_speed ✓, 2fast ✗.",
+      "Python cares about capitals: Score and score are two different variables.",
+      "= means \"store this\". It does not mean \"is equal to\" (that's ==).",
+      "A variable holds one value at a time. Storing a new value replaces the old one.",
+      "Text needs quotes (\"hi\"), numbers don't (5). str(5) turns a number into text so you can join it: \"Score: \" + str(score).",
+    ], [
+      "Los nombres pueden usar letras, números y _ pero no pueden empezar con número ni tener espacios: player_speed ✓, 2fast ✗.",
+      "A Python le importan las mayúsculas: Score y score son dos variables distintas.",
+      "= significa \"guarda esto\". No significa \"es igual a\" (eso es ==).",
+      "Una variable guarda un valor a la vez. Guardar un valor nuevo reemplaza el anterior.",
+      "El texto necesita comillas (\"hola\"), los números no (5). str(5) convierte un número en texto para unirlo: \"Score: \" + str(score).",
+    ]),
+    wrong: 'print("Score: " + score)', right: 'print("Score: " + str(score))',
+    why: T("You can't add text and a number together. str() turns the number into text first.", "No puedes sumar texto y un número. str() convierte primero el número en texto."),
+    words: T("variable · value · string · integer · assign", "variable · valor · string (texto) · entero · asignar"),
+  },
+  conditionals: {
+    points: T([
+      "The line with if ends with a colon :",
+      "The lines that belong to the if are indented 4 spaces. Python runs them only when the question is True.",
+      "Questions use == (equal), != (not equal), <, >, <= and >=.",
+      "and means both must be True. or means at least one must be True. not flips True and False.",
+      "Use elif for more choices. Python runs only the FIRST branch that's True, then skips the rest.",
+    ], [
+      "La línea con if termina con dos puntos :",
+      "Las líneas que pertenecen al if tienen sangría de 4 espacios. Python las ejecuta solo cuando la pregunta es True.",
+      "Las preguntas usan == (igual), != (distinto), <, >, <= y >=.",
+      "and significa que ambas deben ser True. or significa que al menos una debe ser True. not invierte True y False.",
+      "Usa elif para más opciones. Python ejecuta solo la PRIMERA rama que sea True y salta las demás.",
+    ]),
+    wrong: "if lives = 0:\n    game_over()", right: "if lives == 0:\n    game_over()",
+    why: T("One = stores a value. An if needs a question, so use two: ==.", "Un = guarda un valor. Un if necesita una pregunta, así que usa dos: ==."),
+    words: T("condition · boolean (True/False) · branch · event", "condición · booleano (True/False) · rama · evento"),
+  },
+  loops: {
+    points: T([
+      "for item in my_list: runs the indented lines once for each item. item is a new name for the current one.",
+      "for i in range(5): runs 5 times, with i = 0, 1, 2, 3, 4.",
+      "@every_frame is a loop too: the game calls that function 60 times a second, forever.",
+      "Don't put a never-ending while loop inside @every_frame. The game loop already repeats for you.",
+      "Each time through a loop is called an ITERATION.",
+    ], [
+      "for item in my_list: ejecuta las líneas con sangría una vez por cada elemento. item es un nombre nuevo para el actual.",
+      "for i in range(5): se repite 5 veces, con i = 0, 1, 2, 3, 4.",
+      "@every_frame también es un bucle: el juego llama esa función 60 veces por segundo, para siempre.",
+      "No pongas un bucle while sin fin dentro de @every_frame. El ciclo del juego ya repite por ti.",
+      "Cada vuelta de un bucle se llama ITERACIÓN.",
+    ]),
+    wrong: "for c in coins\nc.hide()", right: "for c in coins:\n    c.hide()",
+    why: T("The for line needs a colon, and the repeated lines must be indented under it.", "La línea for necesita dos puntos, y las líneas que se repiten deben tener sangría debajo."),
+    words: T("loop · iteration · for · range · game loop", "bucle · iteración · for · range · ciclo del juego"),
+  },
+  lists: {
+    points: T([
+      "Make a list with square brackets: [ ] is an empty list, [1, 2, 3] has three items.",
+      "Items are numbered starting at 0. my_list[0] is the first item, my_list[1] is the second.",
+      "my_list.append(x) adds x to the end. len(my_list) says how many items there are.",
+      "Use a for loop to do something to every item in the list.",
+      "cleanup(my_list) removes hidden things and things that left the screen.",
+    ], [
+      "Crea una lista con corchetes: [ ] es una lista vacía, [1, 2, 3] tiene tres elementos.",
+      "Los elementos se numeran empezando en 0. my_list[0] es el primero, my_list[1] es el segundo.",
+      "my_list.append(x) agrega x al final. len(my_list) dice cuántos elementos hay.",
+      "Usa un bucle for para hacer algo con cada elemento de la lista.",
+      "cleanup(my_list) quita las cosas escondidas y las que salieron de la pantalla.",
+    ]),
+    wrong: "enemies = []\nprint(enemies[1])", right: "enemies = [a, b]\nprint(enemies[0])",
+    why: T("An empty list has no items, and the first item is number 0, not 1.", "Una lista vacía no tiene elementos, y el primero es el número 0, no el 1."),
+    words: T("list · item · index · append · length", "lista · elemento · índice · append · longitud"),
+  },
+  functions: {
+    points: T([
+      "def name(): starts a function. The colon and the 4-space indent show which lines are inside.",
+      "Defining a function doesn't run it. You have to CALL it: name()",
+      "Parameters go in the ( ) of def. Values you pass when you call it are ARGUMENTS.",
+      "return sends a value back to the code that called the function, then the function stops.",
+      "Give functions verb names that say what they do: move_player, spawn_enemy, reset_ball.",
+    ], [
+      "def nombre(): empieza una función. Los dos puntos y la sangría de 4 espacios muestran qué líneas están adentro.",
+      "Definir una función no la ejecuta. Tienes que LLAMARLA: nombre()",
+      "Los parámetros van en los ( ) de def. Los valores que pasas al llamarla son ARGUMENTOS.",
+      "return manda un valor de regreso al código que llamó la función, y la función termina.",
+      "Ponle a las funciones nombres de acción que digan lo que hacen: move_player, spawn_enemy, reset_ball.",
+    ]),
+    wrong: "def spawn(x):\n    enemies.append(Sprite(\"slime\", x=x, y=0))\n\nspawn", right: "def spawn(x):\n    enemies.append(Sprite(\"slime\", x=x, y=0))\n\nspawn(120)",
+    why: T("Writing the name without ( ) doesn't call the function. Add the parentheses and the value.", "Escribir el nombre sin ( ) no llama la función. Agrega los paréntesis y el valor."),
+    words: T("function · define · call · parameter · argument · return", "función · definir · llamar · parámetro · argumento · return"),
+  },
+  debugging: {
+    points: T([
+      "Read the whole error message. It tells you the line number and what Python didn't understand.",
+      "Look at that line AND the line above it — a missing ) or : often breaks the next line.",
+      "Check spelling and capitals: scroe, Score and score are all different names.",
+      "Check indenting: lines inside an if, for or def need exactly 4 more spaces.",
+      "Change one thing at a time, then run again so you know what fixed it.",
+    ], [
+      "Lee todo el mensaje de error. Te dice el número de línea y qué no entendió Python.",
+      "Mira esa línea Y la de arriba: un ) o : que falta muchas veces rompe la línea siguiente.",
+      "Revisa la ortografía y las mayúsculas: scroe, Score y score son nombres distintos.",
+      "Revisa la sangría: las líneas dentro de un if, for o def necesitan exactamente 4 espacios más.",
+      "Cambia una cosa a la vez y ejecuta de nuevo para saber qué lo arregló.",
+    ]),
+    wrong: "score = 0\nscroe += 1", right: "score = 0\nscore += 1",
+    why: T("A NAME bug: Python doesn't know 'scroe'. Check that names are spelled the same everywhere.", "Un bicho de NOMBRE: Python no conoce 'scroe'. Revisa que los nombres se escriban igual en todas partes."),
+    words: T("bug · debug · syntax error · logic error · test", "bicho (bug) · depurar · error de sintaxis · error de lógica · probar"),
+  },
+};
+
+// How each level uses each concept (shown on the concept's detail slide in that level).
+export const IN_LEVEL = {
+  l1: { variables: T("Store your game's TITLE, speed and settings, and print the title.", "Guarda el TITLE, la velocidad y los ajustes de tu juego, e imprime el título.") },
+  l2: { variables: T("Change x and y a little every frame so things move.", "Cambia x e y un poquito en cada cuadro para que las cosas se muevan."),
+        functions: T("Write a function with def and tag it @every_frame.", "Escribe una función con def y márcala con @every_frame."),
+        loops: T("The game loop runs your function 60 times a second.", "El ciclo del juego ejecuta tu función 60 veces por segundo.") },
+  l3: { conditionals: T("Use if with key_down() and key_pressed() to react to keys.", "Usa if con key_down() y key_pressed() para reaccionar a las teclas."),
+        variables: T("Change the player's x and y (and speed) when a key is pressed.", "Cambia x e y del jugador (y su velocidad) cuando se presiona una tecla.") },
+  l4: { lists: T("Keep many things — platforms, enemies, bricks or lasers — in one list.", "Guarda muchas cosas (plataformas, enemigos, ladrillos o láseres) en una lista."),
+        loops: T("Use for and range() to build and move every item in the list.", "Usa for y range() para construir y mover cada elemento de la lista.") },
+  l5: { conditionals: T("Use if with touching() to check when two things hit.", "Usa if con touching() para revisar cuándo chocan dos cosas."),
+        loops: T("Loop through your list so every item gets checked.", "Recorre tu lista para revisar cada elemento."),
+        variables: T("Keep a score variable and add 1 when something good happens.", "Lleva una variable score y súmale 1 cuando pase algo bueno."),
+        lists: T("Check every item in the list you built in Level 4.", "Revisa cada elemento de la lista que construiste en el Nivel 4.") },
+  side1: { variables: T("Add a lives variable and subtract 1 when the player gets hit.", "Agrega una variable lives y réstale 1 cuando golpean al jugador."),
+           conditionals: T("Use if to end the game when lives run out.", "Usa if para terminar el juego cuando se acaben las vidas.") },
+  l6: { functions: T("Package a job into a function with parameters and call it more than once.", "Pon una tarea en una función con parámetros y llámala más de una vez."),
+        lists: T("Your function adds new things to a list.", "Tu función agrega cosas nuevas a una lista."),
+        loops: T("Call your function inside a loop to make many things at once.", "Llama tu función dentro de un bucle para crear muchas cosas a la vez.") },
+  boss: { debugging: T("Find and fix 4 bugs the Bug Beast hid in the code.", "Encuentra y arregla 4 bichos que la Bestia escondió en el código."),
+          variables: T("One bug is a variable that never changes the way it should.", "Un bicho es una variable que no cambia como debería."),
+          conditionals: T("Look for an if that never comes True.", "Busca un if que nunca se vuelve True."),
+          loops: T("Check that the loop really does its job for every item.", "Revisa que el bucle de verdad haga su tarea con cada elemento.") },
+  mygame: { conditionals: T("Use if to check when the player wins.", "Usa if para revisar cuándo gana el jugador."),
+            functions: T("Add your own function for a new feature.", "Agrega tu propia función para algo nuevo."),
+            loops: T("Every new enemy or item goes in a loop so it moves and gets checked.", "Cada enemigo o cosa nueva va en un bucle para que se mueva y se revise."),
+            lists: T("Add new things to your lists to make the game bigger.", "Agrega cosas nuevas a tus listas para hacer el juego más grande."),
+            variables: T("Tune your numbers — speed, gravity, lives — until the game feels right.", "Ajusta tus números (velocidad, gravedad, vidas) hasta que el juego se sienta bien.") },
+};
+
+// The detail slide for a concept (optionally with how this level uses it).
+export const detailSlide = (cid, names, levelId) => ({ conceptDetail: cid, ...CONCEPT_DETAILS[cid], inLevel: IN_LEVEL[levelId]?.[cid], title: names[cid] });
+
 // A single concept card as a slide.
 export const conceptSlide = (cid, names) => ({ ...CONCEPT_CARDS[cid], conceptCard: cid, title: names[cid] });
 
@@ -289,10 +434,12 @@ export function deckFor(id, names) {
   const uses = USES[id] || [];
   if (!uses.length) return own;
   const taught = new Set(own.map((s) => s.concept).filter(Boolean));
+  // Concepts this level teaches itself get their detail slide right after the level's own intro slide for it.
+  const ownWithDetails = own.flatMap((sl) => (sl.concept && uses.includes(sl.concept) ? [sl, detailSlide(sl.concept, names, id)] : [sl]));
   return [
     { overview: uses, title: T("Concepts in this level", "Conceptos de este nivel") },
-    ...uses.filter((c) => !taught.has(c)).map((c) => conceptSlide(c, names)),
-    ...own,
+    ...uses.filter((c) => !taught.has(c)).flatMap((c) => [conceptSlide(c, names), detailSlide(c, names, id)]),
+    ...ownWithDetails,
   ];
 }
 

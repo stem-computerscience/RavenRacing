@@ -3,7 +3,7 @@ import { LEVELS, SNIPPETS } from "./lessons.js";
 import { GAME_TYPES, ensureLevel, markerRe, langPick } from "./games.js";
 import { UNIT, CONCEPTS, BADGES, SHOP, HINT_COST, isUnlocked, mastery, levelFor } from "./curriculum.js";
 import { spriteSVG, GUIDES } from "./sprites.js";
-import { SLIDES, PICS, USES, CONCEPT_CARDS, deckFor, conceptSlide } from "./slides.js";
+import { SLIDES, PICS, USES, CONCEPT_CARDS, deckFor, conceptSlide, detailSlide } from "./slides.js";
 
 // ---------- state & helpers ----------
 const S = { me: null, progress: {}, locks: [], notes: [], game: null, className: "", lang: "en", status: null };
@@ -88,7 +88,7 @@ const slidesKey = (id) => `pq-slides-${S.me?.id}-${id}`;
 const conceptNames = () => Object.fromEntries(CONCEPTS.map((c) => [c.id, { en: c.en, es: c.es }]));
 function showSlides(id, { onDone, concept } = {}) {
   // concept: show just that concept's card. Otherwise: the level's full deck (concept intros, then the level's slides).
-  const deck = concept ? [conceptSlide(concept, conceptNames())] : deckFor(id, conceptNames());
+  const deck = concept ? [conceptSlide(concept, conceptNames()), detailSlide(concept, conceptNames(), id)] : deckFor(id, conceptNames());
   if (!deck.length) return;
   if (!concept) store.set(slidesKey(id), "1");
   let i = 0, picked = null;
@@ -108,8 +108,12 @@ function showSlides(id, { onDone, concept } = {}) {
       <div class="row"><span class="chip">📖 ${esc(tx(L.title))}</span><span class="spacer"></span>${deck.length > 1 ? `<span class="small muted">${t("slideOf", i + 1, deck.length)}</span>` : ""}
         <button type="button" class="btn ghost small" data-close>✕ ${t("close")}</button></div>
       ${deck.length < 2 ? "" : `<div class="dots" aria-hidden="true">${deck.map((_, j) => `<i class="${j === i ? "on" : j < i ? "past" : ""}"></i>`).join("")}</div>`}
-      <h2 id="modal-title">${s.conceptCard ? `<span class="chip concept">🧩 ${t("concept")}</span> ` : ""}${esc(tx(s.title))}</h2>
-      ${s.overview ? `<p class="lead">${t("conceptsIntro")}</p><ul class="overview">${s.overview.map((c) => `<li><b>${esc(tx(conceptNames()[c]))}</b><span>${esc(tx(CONCEPT_CARDS[c].short))}</span></li>`).join("")}</ul>`
+      <h2 id="modal-title">${s.conceptCard ? `<span class="chip concept">🧩 ${t("concept")}</span> ` : s.conceptDetail ? `<span class="chip concept">🔍 ${t("details")}</span> ` : ""}${esc(tx(s.title))}</h2>
+      ${s.overview ? `<p class="lead">${t("conceptsIntro")}</p><ul class="overview">${s.overview.map((c) => `<li><button type="button" data-jump="${c}"><b>${esc(tx(conceptNames()[c]))}</b><span>${esc(tx(CONCEPT_CARDS[c].short))}</span><span aria-hidden="true">→</span></button></li>`).join("")}</ul>`
+      : s.conceptDetail ? `${s.inLevel ? `<div class="inlevel"><b>${t("inThisLevel")}:</b> ${esc(tx(s.inLevel))}</div>` : ""}
+        <div class="details"><div><h3>${t("remember")}</h3><ul class="points">${tx(s.points).map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>
+        <div class="watch"><h3>⚠ ${t("watchOut")}</h3><div class="bad-code"><span>✗</span><pre class="code">${esc(s.wrong)}</pre></div><div class="good-code"><span>✓</span><pre class="code">${esc(s.right)}</pre></div><p>${esc(tx(s.why))}</p></div></div>
+        <p class="small words"><b>${t("wordsToKnow")}:</b> ${esc(tx(s.words))}</p>`
       : s.quiz ? `<p class="lead">${esc(tx(s.q))}</p>
         <div class="quiz" role="group" aria-label="${esc(tx(s.q))}">${s.options.map((o, j) => `<button type="button" class="btn ${picked === null ? "" : j === s.answer ? "go" : j === picked ? "bad" : ""}" data-j="${j}" ${picked !== null ? "disabled" : ""}><code>${esc(tx(o))}</code></button>`).join("")}</div>
         <div aria-live="polite">${picked === null ? "" : `<div class="result ${picked === s.answer ? "good" : "bad"}"><b>${picked === s.answer ? t("quizRight") : t("quizWrong")}</b> ${esc(tx(s.why))}</div>`}</div>`
@@ -124,8 +128,9 @@ function showSlides(id, { onDone, concept } = {}) {
       </div>`;
     $("#sprev", el)?.addEventListener("click", () => move(-1));
     $("#snext", el)?.addEventListener("click", () => move(1));
+    $$("[data-jump]", el).forEach((b) => (b.onclick = () => { const j = deck.findIndex((d) => d.conceptCard === b.dataset.jump || d.concept === b.dataset.jump); if (j > -1) { i = j - 1; move(1); } }));
     $$(".quiz button", el).forEach((b) => (b.onclick = () => { picked = +b.dataset.j; draw(); }));
-    $("#sread", el)?.addEventListener("click", (e) => speak(s.quiz ? tx(s.q) + ". " + s.options.map((o) => tx(o)).join(". ") : s.overview ? tx(s.title) + ". " + s.overview.map((c) => tx(conceptNames()[c]) + ": " + tx(CONCEPT_CARDS[c].short)).join(". ") : tx(s.title) + ". " + tx(s.body), e.currentTarget));
+    $("#sread", el)?.addEventListener("click", (e) => speak(s.quiz ? tx(s.q) + ". " + s.options.map((o) => tx(o)).join(". ") : s.overview ? tx(s.title) + ". " + s.overview.map((c) => tx(conceptNames()[c]) + ": " + tx(CONCEPT_CARDS[c].short)).join(". ") : s.conceptDetail ? [tx(s.title), s.inLevel ? t("inThisLevel") + ": " + tx(s.inLevel) : "", t("remember"), ...tx(s.points), t("watchOut"), tx(s.why)].filter(Boolean).join(". ") : tx(s.title) + ". " + tx(s.body), e.currentTarget));
     ($("#snext", el) || $("#sdone", el))?.focus();
   };
   draw();
