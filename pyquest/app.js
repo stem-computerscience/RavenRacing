@@ -699,7 +699,7 @@ async function pageTeacher() {
     <div class="tabs" role="tablist">${["progress", "mastery", "errors", "students", "classes", "controls", "leaderboard"].map((k) => `<button role="tab" data-tab="${k}" aria-selected="${T.tab === k}">${t(k)}</button>`).join("")}</div>
     <section id="tab"></section></div>`;
   $$("[data-tab]").forEach((b) => (b.onclick = () => { T.tab = b.dataset.tab; pageTeacher(); }));
-  $("#cls").onchange = async (e) => { T.classId = e.target.value; await loadTeacher(); pageTeacher(); };
+  $("#cls").onchange = async (e) => { T.classId = e.target.value; T.showPw = false; T.pw = null; await loadTeacher(); pageTeacher(); };
   $("#addcls").onclick = () => {
     const { el, close } = openModal(`<h2 id="modal-title">${t("addClass")}</h2><label>${t("className")}<input type="text" id="cn" maxlength="40" autofocus></label><div class="row"><button class="btn primary" id="ok">${t("create")}</button><button class="btn ghost" data-close>${t("close")}</button></div>`);
     $("#cn", el).insertAdjacentHTML("afterend", `<span class="small" id="cnerr" role="alert" style="color:var(--bad)"></span>`);
@@ -771,9 +771,11 @@ function tabStudents(el, D) {
     <label style="max-width:360px;margin-bottom:10px">${t("addToClass")}<select id="toclass">${D.classes.map((c) => `<option value="${esc(c.id)}" ${c.id === D.classId || (allMode() && c === D.classes[0]) ? "selected" : ""}>${esc(L[c.id])}</option>`).join("")}</select></label>
     <textarea id="bulk" rows="6" placeholder="${esc(t("sampleLine"))}" style="font-family:var(--code)"></textarea>
     <div class="row" style="margin-top:10px"><button class="btn primary" id="mk">${t("create")}</button><span class="spacer"></span>${D.students.length ? `<button class="btn ghost small" id="allcards">🖨 ${t("newPwAll")}</button>` : ""}</div><div id="mkres"></div></div>
-    <div class="panel scroll" style="margin-top:12px"><h2 style="margin-top:0">${t("students")} (${D.students.length})</h2><table class="stack"><thead><tr><th>${t("student")}</th><th>${t("username")}</th><th>${t("className")}</th><th class="num">${t("xp")}</th><th></th></tr></thead><tbody>
+    ${D.students.length ? `<div class="row" style="margin-top:12px"><button class="btn gold small" id="showpw" aria-pressed="${T.showPw ? "true" : "false"}">${T.showPw ? "🙈 " + t("hidePasswords") : "👁 " + t("showPasswords")}</button>
+      ${T.showPw ? `<button class="btn small" id="printshown">🖨 ${t("printCards")}</button><span class="small muted">${t("passwordsVisible")}</span>` : ""}</div>` : ""}
+    <div class="panel scroll" style="margin-top:12px"><h2 style="margin-top:0">${t("students")} (${D.students.length})</h2><table class="stack"><thead><tr><th>${t("student")}</th><th>${t("username")}</th><th>${t("className")}</th>${T.showPw ? `<th>${t("password")}</th>` : ""}<th class="num">${t("xp")}</th><th></th></tr></thead><tbody>
     ${D.students.length ? "" : `<tr><td colspan="5" class="muted">${t("noStudents")}</td></tr>`}
-    ${D.students.map((s) => `<tr><td data-l="${t("student")}">${whoHTML(s)}</td><td data-l="${t("username")}"><code>${esc(s.username)}</code></td><td data-l="${t("className")}">${esc(L[s.class_id] || "")}</td><td class="num" data-l="${t("xp")}">${s.xp}</td>
+    ${D.students.map((s) => `<tr><td data-l="${t("student")}">${whoHTML(s)}</td><td data-l="${t("username")}"><code>${esc(s.username)}</code></td><td data-l="${t("className")}">${esc(L[s.class_id] || "")}</td>${T.showPw ? `<td data-l="${t("password")}">${T.pw?.[s.id] ? `<code>${esc(T.pw[s.id])}</code>` : `<span class="small muted">${t("resetToSee")}</span>`}</td>` : ""}<td class="num" data-l="${t("xp")}">${s.xp}</td>
       <td><div class="row"><button class="btn small" data-stu="${esc(s.id)}">${t("viewCode")}</button><button class="btn small" data-pw="${esc(s.id)}">${t("resetPw")}</button><button class="btn ghost small" data-del="${esc(s.id)}" data-name="${esc(s.name)}">${t("del")}</button></div></td></tr>`).join("")}
     </tbody></table></div>`;
   $("#mk").onclick = async () => {
@@ -794,6 +796,17 @@ function tabStudents(el, D) {
       $("#mkres").innerHTML = keep; $("#printmade")?.addEventListener("click", () => printCards(made));
     }
   };
+  $("#showpw")?.addEventListener("click", async () => {
+    if (T.showPw) { T.showPw = false; T.pw = null; return tabStudents(el, T.data); }
+    try { T.pw = (await api("GET", "/api/teacher/passwords?class=" + encodeURIComponent(T.classId || "all"))).passwords; T.showPw = true; tabStudents(el, T.data); }
+    catch { toast(t("oops")); }
+  });
+  $("#printshown")?.addEventListener("click", () => {
+    const list = D.students.filter((x) => T.pw?.[x.id]).map((x) => ({ name: x.name, username: x.username, password: T.pw[x.id] }));
+    const missing = D.students.length - list.length;
+    if (missing) toast(t("cardsMissing", missing));
+    if (list.length) printCards(list);
+  });
   if ($("#allcards")) $("#allcards").onclick = () => {
     const { el: m, close } = openModal(`<h2 id="modal-title">${t("newPwAll")}</h2><p>${t("newPwAllHelp")}</p>
       <div class="row"><button class="btn primary" id="y">${t("newPwAll")}</button><button class="btn ghost" data-close autofocus>${t("close")}</button></div>`);
@@ -832,7 +845,14 @@ function printCards(list) {
 function resetPw(id) {
   const pw = genPw();
   const { el, close } = openModal(`<h2 id="modal-title">${t("resetPw")}</h2><label>${t("newPw")}<input type="text" id="np" value="${pw}" minlength="4" maxlength="64"></label><div class="row"><button class="btn primary" id="ok">${t("save")}</button><button class="btn ghost" data-close>${t("close")}</button></div>`);
-  $("#ok", el).onclick = async () => { try { await api("POST", `/api/teacher/students/${encodeURIComponent(id)}/password`, { password: $("#np", el).value }); toast("✓ " + $("#np", el).value); close(); } catch (e) { toast(e.message); } };
+  $("#ok", el).onclick = async () => {
+    try {
+      const pw = $("#np", el).value;
+      await api("POST", `/api/teacher/students/${encodeURIComponent(id)}/password`, { password: pw });
+      toast("✓ " + pw); close();
+      if (T.showPw) { T.pw = { ...(T.pw || {}), [id]: pw }; if (T.tab === "students") tabStudents($("#tab"), T.data); }
+    } catch (e) { toast(e.message); }
+  };
 }
 
 // ---------- Classes: every class with its roster; view, rename, delete ----------
