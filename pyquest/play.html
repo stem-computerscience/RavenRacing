@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PyQuest Arcade game</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Nunito:wght@600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css">
+<script src="config.js"></script>
+</head>
+<body data-skin="arcade">
+<main class="page" style="max-width:560px">
+  <p class="small muted" style="margin:0">PyQuest Arcade</p>
+  <h1 id="title">Loading…</h1>
+  <p id="by" class="muted"></p>
+  <div id="frame"></div>
+  <p class="small muted">Click the game, then use the arrow keys — or tap these buttons:</p>
+  <div class="pad" role="group" aria-label="Game controls">
+    <button data-key="left" aria-label="left">◀</button><button data-key="up" aria-label="up">▲</button><button data-key="space" aria-label="space">●</button><button data-key="down" aria-label="down">▼</button><button data-key="right" aria-label="right">▶</button>
+  </div>
+  <div class="row" style="margin-top:12px"><button class="btn primary" id="again">↺ Play again</button></div>
+  <p class="small muted">Made by a student learning Python. This page shows the game only — no accounts or personal info.</p>
+</main>
+<script>
+{
+  const token = new URLSearchParams(location.search).get("g") || "";
+  const frame = document.createElement("iframe");
+  frame.className = "gameframe"; frame.title = "Game"; frame.setAttribute("sandbox", "allow-scripts"); frame.src = "runner.html";
+  document.getElementById("frame").appendChild(frame);
+  let code = "", ready = false;
+  const post = (m) => frame.contentWindow.postMessage(m, "*");
+  const start = () => { if (ready && code) post({ type: "run", code, id: "p" }); };
+  addEventListener("message", (e) => { if (e.source === frame.contentWindow && e.data?.type === "ready") { ready = true; start(); } });
+  fetch(String(window.PQ_CONFIG?.api || "").replace(/\/$/, "") + "/api/public/" + encodeURIComponent(token)).then((r) => r.ok ? r.json() : Promise.reject()).then((g) => {
+    document.getElementById("title").textContent = g.title;
+    document.getElementById("by").textContent = "by " + g.author;
+    document.title = g.title + " · PyQuest Arcade";
+    code = g.code; start();
+  }).catch(() => { document.getElementById("title").textContent = "This game isn't available."; });
+  document.getElementById("again").onclick = start;
+  const K = { ArrowLeft: "left", ArrowRight: "right", ArrowUp: "up", ArrowDown: "down", " ": "space" };
+  addEventListener("keydown", (e) => { if (K[e.key]) { e.preventDefault(); post({ type: "key", key: K[e.key], down: true }); } });
+  addEventListener("keyup", (e) => { if (K[e.key]) post({ type: "key", key: K[e.key], down: false }); });
+  document.querySelectorAll(".pad button").forEach((b) => {
+    const k = b.dataset.key;
+    b.addEventListener("pointerdown", (e) => { e.preventDefault(); b.classList.add("on"); post({ type: "key", key: k, down: true }); });
+    ["pointerup", "pointerleave", "pointercancel"].forEach((ev) => b.addEventListener(ev, () => { b.classList.remove("on"); post({ type: "key", key: k, down: false }); }));
+  });
+}
+</script>
+</body>
+</html>
