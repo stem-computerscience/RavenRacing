@@ -453,10 +453,10 @@ async function pageLesson(id) {
       <div class="panel"><h3>${t("goals")}</h3><ol class="goals">${L.goals[S.lang].map((x) => `<li>${esc(x)}</li>`).join("")}</ol>
         ${L.inFile ? `<p class="small muted" style="margin:8px 0 0">${t("growsHere")}</p>` : ""}</div>
       ${notes.map((n) => `<div class="note"><b>${t("teacherNote")}:</b> ${esc(n.body)}</div>`).join("")}
-      <div id="result" aria-live="polite"></div>
       <div class="panel hints"><div class="row"><h3 style="margin:0">${t("hint")}s</h3><span class="spacer"></span><button class="btn gold small" id="hintbtn"></button></div><div id="hintlist"></div></div>
       ${id === "mygame" ? `<div class="panel" id="buildbox"></div>` : ""}
       ${id === "l1" ? `<button class="btn ghost small" id="changegame">${t("changeGame")}</button>` : ""}
+      <div id="result" aria-live="polite"></div>
     </section>
     <section class="editor">
       <div class="snips" role="toolbar" aria-label="Insert code">${SNIPPETS.map((s, i) => `<button type="button" data-i="${i}" title="${esc(t("insertCode", s.label))}" aria-label="${esc(t("insertCode", s.label))}">${esc(s.label)}</button>`).join("")}</div>
