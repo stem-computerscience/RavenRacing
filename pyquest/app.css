@@ -135,7 +135,8 @@ textarea.code { width: 100%; height: 480px; border: 0; border-radius: 0; backgro
 .screen { display: grid; gap: 10px; position: sticky; top: 84px; }
 .gameframe { aspect-ratio: 1; width: 100%; border: 0; border-radius: var(--r); background: #000; box-shadow: 0 0 0 6px var(--panel2), var(--shadow); display: block; }
 .pad { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
-.pad button { min-height: 52px; border-radius: 12px; border: 0; background: var(--panel2); font: 700 18px var(--title); box-shadow: 0 4px 0 rgba(0,0,0,.3); touch-action: none; user-select: none; -webkit-user-select: none; cursor: pointer; }
+.pad button small { display: block; font: 700 12px/1 var(--font); margin-top: 3px; letter-spacing: 0; }
+.pad button { min-height: 58px; border-radius: 12px; border: 0; background: var(--panel2); font: 700 18px var(--title); box-shadow: 0 4px 0 rgba(0,0,0,.3); touch-action: none; user-select: none; -webkit-user-select: none; cursor: pointer; }
 .pad button.on { background: var(--support); color: #062b2b; transform: translateY(3px); box-shadow: none; }
 .console { background: #070b10; color: #cde3f3; font: 14px/1.5 var(--code); border-radius: 12px; padding: 10px 12px; height: 130px; overflow: auto; white-space: pre-wrap; margin: 0; }
 .boss { display: flex; gap: 12px; align-items: center; }
@@ -217,3 +218,5 @@ body.a11y-motion *, body.a11y-motion *::before { animation: none !important; tra
 /* sign-in art: keep the title readable where it overlaps the pictures */
 .login .art > h1, .login .art > p { text-shadow: 0 2px 0 rgba(0,0,0,.45), 0 0 18px rgba(0,0,0,.85); }
 .login .art::before { content: ""; position: absolute; inset: auto 0 0 0; height: 60%; background: linear-gradient(transparent, rgba(0,0,0,.45)); pointer-events: none; }
+
+.swatch { display: grid; justify-items: center; gap: 4px; font-weight: 700; }

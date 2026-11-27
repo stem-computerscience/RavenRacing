@@ -121,8 +121,9 @@ addEventListener("keydown", (e) => { if (activeRunner && KEYS[e.key] && !typing(
 addEventListener("keyup", (e) => { if (activeRunner && KEYS[e.key]) activeRunner.key(KEYS[e.key], false); });
 
 function padHTML() {
-  return `<div class="pad" role="group" aria-label="Game controls">${[["left", "◀"], ["up", "▲"], ["space", "●"], ["down", "▼"], ["right", "▶"]]
-    .map(([k, l]) => `<button type="button" data-key="${k}" aria-label="${k}">${l}</button>`).join("")}</div>`;
+  const names = obj("keys");
+  return `<div class="pad" role="group" aria-label="${esc(t("gameControls"))}">${[["left", "◀"], ["up", "▲"], ["space", "●"], ["down", "▼"], ["right", "▶"]]
+    .map(([k, l]) => `<button type="button" data-key="${k}"><span aria-hidden="true">${l}</span><small>${esc(names[k] || k)}</small></button>`).join("")}</div>`;
 }
 function wirePad(root, runner) {
   $$(".pad button", root).forEach((b) => {
@@ -411,14 +412,14 @@ async function pageLesson(id) {
       ${id === "l1" ? `<button class="btn ghost small" id="changegame">${t("changeGame")}</button>` : ""}
     </section>
     <section class="editor">
-      <div class="snips" role="toolbar" aria-label="Insert code">${SNIPPETS.map((s, i) => `<button type="button" data-i="${i}">${esc(s.label)}</button>`).join("")}</div>
+      <div class="snips" role="toolbar" aria-label="Insert code">${SNIPPETS.map((s, i) => `<button type="button" data-i="${i}" title="${esc(t("insertCode", s.label))}" aria-label="${esc(t("insertCode", s.label))}">${esc(s.label)}</button>`).join("")}</div>
       <div class="editbox" id="ed"></div>
       <div class="row">
         <button class="btn go" id="run">▶ ${t("run")}</button>
         <button class="btn" id="stop">■ ${t("stop")}</button>
         <button class="btn primary" id="check">✓ ${t("check")}</button>
         <span class="spacer"></span><span class="small muted" id="savestate"></span>
-        <button class="btn ghost small" id="resetcode" title="${t("resetLevel")}" aria-label="${t("resetLevel")}">↺</button>
+        <button class="btn ghost small" id="resetcode">↺ ${t("resetLevel")}</button>
       </div>
     </section>
     <section class="screen" aria-label="Game">
@@ -576,12 +577,12 @@ async function pageShop() {
   main.innerHTML = `<div class="page">
     <section class="panel"><div class="row">${avatarHTML(u.avatar, 96)}<div><h1 style="font-size:34px;margin:0">${esc(u.name)}</h1><p class="muted" style="margin:0">${t("level")} ${u.level} · ${u.xp} ${t("xp")} · ${u.coins} ${t("coins")}</p></div></div></section>
     <section class="panel"><h2>${t("avatar")}</h2>
-      <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(72px,1fr))">${u.unlocked.map((s) => `<button class="card ${u.avatar.sprite === s ? "sel" : ""}" data-av="${esc(s)}" aria-pressed="${u.avatar.sprite === s}" aria-label="${esc(s)}">${spriteSVG(s, 40)}</button>`).join("")}</div>
-      <div class="swatches" style="margin-top:12px">${COLORS.map((c) => `<button style="background:${c}" data-col="${c}" aria-pressed="${u.avatar.color === c}" aria-label="${c}"></button>`).join("")}</div></section>
+      <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(72px,1fr))">${u.unlocked.map((s) => `<button class="card ${u.avatar.sprite === s ? "sel" : ""}" data-av="${esc(s)}" aria-pressed="${u.avatar.sprite === s}">${spriteSVG(s, 40)}<span class="small">${esc(s)}</span></button>`).join("")}</div>
+      <div class="swatches" style="margin-top:12px">${COLORS.map((c, i) => `<label class="swatch"><button style="background:${c}" data-col="${c}" aria-pressed="${u.avatar.color === c}" aria-label="${esc(obj("colors")[i])}"></button><span class="small">${esc(obj("colors")[i])}</span></label>`).join("")}</div></section>
     <section class="panel"><h2>${t("world")}</h2><div class="grid">${["space", "fantasy", "arcade", "ocean"].map((k) => `<button class="card ${u.skin === k ? "sel" : ""}" data-skin="${k}" aria-pressed="${u.skin === k}">${spriteSVG(GUIDES[k], 48)}<b>${obj("skins")[k]}</b><span class="small muted">${obj("guides")[k]}</span></button>`).join("")}</div></section>
     <section class="panel"><h2>${t("sprites")}</h2><div class="grid">${SHOP.map((s) => {
       const own = u.unlocked.includes(s.id);
-      return `<div class="card">${spriteSVG(s.id, 48)}<b>${esc(s.id)}</b>${own ? `<span class="chip">✓ ${t("owned")}</span>` : `<button class="btn gold small" data-buy="${s.id}" ${u.coins < s.price ? "disabled" : ""}>${spriteSVG("coin", 20)} ${s.price}</button>`}</div>`;
+      return `<div class="card">${spriteSVG(s.id, 48)}<b>${esc(s.id)}</b>${own ? `<span class="chip">✓ ${t("owned")}</span>` : `<button class="btn gold small" data-buy="${s.id}" ${u.coins < s.price ? "disabled" : ""}>${t("buy")} · ${s.price} ${t("coins")}</button>`}</div>`;
     }).join("")}</div></section>
     <section class="panel"><h2>${t("badges")}</h2><div class="grid">${BADGES.map((b) => `<div class="badge ${u.badges.includes(b.id) ? "" : "off"}"><div class="medal">★</div><b>${esc(tx(b))}</b><span class="small muted">${esc(S.lang === "es" ? b.desc_es : b.desc_en)}</span></div>`).join("")}</div></section>
     <section class="panel"><h2>${t("settings")}</h2>
@@ -640,7 +641,7 @@ async function pageRemix() {
       <div id="result" aria-live="polite"></div>
     </section>
     <section class="editor">
-      <div class="snips" role="toolbar" aria-label="Insert code">${SNIPPETS.map((x, i) => `<button type="button" data-i="${i}">${esc(x.label)}</button>`).join("")}</div>
+      <div class="snips" role="toolbar" aria-label="Insert code">${SNIPPETS.map((x, i) => `<button type="button" data-i="${i}" title="${esc(t("insertCode", x.label))}" aria-label="${esc(t("insertCode", x.label))}">${esc(x.label)}</button>`).join("")}</div>
       <div class="editbox" id="ed"></div>
       <div class="row"><button class="btn go" id="run">▶ ${t("run")}</button><button class="btn" id="stop">■ ${t("stop")}</button><span class="spacer"></span><span class="small muted" id="savestate"></span></div>
     </section>
