@@ -3,7 +3,7 @@ import { LEVELS, SNIPPETS } from "./lessons.js";
 import { GAME_TYPES, ensureLevel, markerRe, langPick } from "./games.js";
 import { UNIT, CONCEPTS, BADGES, SHOP, HINT_COST, isUnlocked, mastery, levelFor } from "./curriculum.js";
 import { spriteSVG, GUIDES } from "./sprites.js";
-import { SLIDES, PICS } from "./slides.js";
+import { SLIDES, PICS, USES, CONCEPT_CARDS, deckFor, conceptSlide } from "./slides.js";
 
 // ---------- state & helpers ----------
 const S = { me: null, progress: {}, locks: [], notes: [], game: null, className: "", lang: "en", status: null };
@@ -85,10 +85,12 @@ function speak(text, btn) {
 
 // ---------- concept slides (shown the first time a level opens; reopen any time) ----------
 const slidesKey = (id) => `pq-slides-${S.me?.id}-${id}`;
-function showSlides(id, { onDone } = {}) {
-  const deck = SLIDES[id];
-  if (!deck) return;
-  store.set(slidesKey(id), "1");
+const conceptNames = () => Object.fromEntries(CONCEPTS.map((c) => [c.id, { en: c.en, es: c.es }]));
+function showSlides(id, { onDone, concept } = {}) {
+  // concept: show just that concept's card. Otherwise: the level's full deck (concept intros, then the level's slides).
+  const deck = concept ? [conceptSlide(concept, conceptNames())] : deckFor(id, conceptNames());
+  if (!deck.length) return;
+  if (!concept) store.set(slidesKey(id), "1");
   let i = 0, picked = null;
   const L = levelData(id), guideName = obj("guides")[S.me.skin];
   const { el, close } = openModal(`<div class="slides" role="region" aria-roledescription="${esc(t("slides"))}" aria-labelledby="modal-title"><div id="slide"></div></div>`, { wide: true, onClose: () => { speech && speechSynthesis.cancel(); document.removeEventListener("keydown", onKey); onDone?.(); } });
@@ -103,26 +105,27 @@ function showSlides(id, { onDone } = {}) {
     const s = deck[i], last = i === deck.length - 1;
     const code = s.code ? (typeof s.code === "string" ? s.code : tx(s.code)) : "";
     $("#slide", el).innerHTML = `
-      <div class="row"><span class="chip">📖 ${esc(tx(L.title))}</span><span class="spacer"></span><span class="small muted">${t("slideOf", i + 1, deck.length)}</span>
+      <div class="row"><span class="chip">📖 ${esc(tx(L.title))}</span><span class="spacer"></span>${deck.length > 1 ? `<span class="small muted">${t("slideOf", i + 1, deck.length)}</span>` : ""}
         <button type="button" class="btn ghost small" data-close>✕ ${t("close")}</button></div>
-      <div class="dots" aria-hidden="true">${deck.map((_, j) => `<i class="${j === i ? "on" : j < i ? "past" : ""}"></i>`).join("")}</div>
-      <h2 id="modal-title">${esc(tx(s.title))}</h2>
-      ${s.quiz ? `<p class="lead">${esc(tx(s.q))}</p>
+      ${deck.length < 2 ? "" : `<div class="dots" aria-hidden="true">${deck.map((_, j) => `<i class="${j === i ? "on" : j < i ? "past" : ""}"></i>`).join("")}</div>`}
+      <h2 id="modal-title">${s.conceptCard ? `<span class="chip concept">🧩 ${t("concept")}</span> ` : ""}${esc(tx(s.title))}</h2>
+      ${s.overview ? `<p class="lead">${t("conceptsIntro")}</p><ul class="overview">${s.overview.map((c) => `<li><b>${esc(tx(conceptNames()[c]))}</b><span>${esc(tx(CONCEPT_CARDS[c].short))}</span></li>`).join("")}</ul>`
+      : s.quiz ? `<p class="lead">${esc(tx(s.q))}</p>
         <div class="quiz" role="group" aria-label="${esc(tx(s.q))}">${s.options.map((o, j) => `<button type="button" class="btn ${picked === null ? "" : j === s.answer ? "go" : j === picked ? "bad" : ""}" data-j="${j}" ${picked !== null ? "disabled" : ""}><code>${esc(tx(o))}</code></button>`).join("")}</div>
         <div aria-live="polite">${picked === null ? "" : `<div class="result ${picked === s.answer ? "good" : "bad"}"><b>${picked === s.answer ? t("quizRight") : t("quizWrong")}</b> ${esc(tx(s.why))}</div>`}</div>`
       : `<div class="slidebody">${s.pic ? `<div class="pic">${PICS[s.pic](S.lang)}</div>` : ""}<div>
           <div class="guide">${spriteSVG(GUIDES[S.me.skin], 44, guideName)}<div class="bubble">${esc(tx(s.body))}</div></div>
           ${code ? `<pre class="code">${esc(code)}</pre>` : ""}</div></div>`}
       <div class="row">
-        <button class="btn ghost" id="sprev" ${i === 0 ? "disabled" : ""}>← ${t("back")}</button>
+        ${deck.length > 1 ? `<button class="btn ghost" id="sprev" ${i === 0 ? "disabled" : ""}>← ${t("back")}</button>` : ""}
         ${speech ? `<button class="btn ghost small" id="sread">🔊 ${t("readAloud")}</button>` : ""}
         <span class="spacer"></span>
-        ${last ? `<button class="btn go" data-close id="sdone" autofocus>${t("startCoding")} →</button>` : `<button class="btn primary" id="snext" autofocus>${t("next")} →</button>`}
+        ${last && deck.length === 1 ? `<button class="btn go" data-close id="sdone" autofocus>${t("gotIt")} ✓</button>` : last ? `<button class="btn go" data-close id="sdone" autofocus>${t("startCoding")} →</button>` : `<button class="btn primary" id="snext" autofocus>${t("next")} →</button>`}
       </div>`;
-    $("#sprev", el).onclick = () => move(-1);
+    $("#sprev", el)?.addEventListener("click", () => move(-1));
     $("#snext", el)?.addEventListener("click", () => move(1));
     $$(".quiz button", el).forEach((b) => (b.onclick = () => { picked = +b.dataset.j; draw(); }));
-    $("#sread", el)?.addEventListener("click", (e) => speak(s.quiz ? tx(s.q) + ". " + s.options.map((o) => tx(o)).join(". ") : tx(s.title) + ". " + tx(s.body), e.currentTarget));
+    $("#sread", el)?.addEventListener("click", (e) => speak(s.quiz ? tx(s.q) + ". " + s.options.map((o) => tx(o)).join(". ") : s.overview ? tx(s.title) + ". " + s.overview.map((c) => tx(conceptNames()[c]) + ": " + tx(CONCEPT_CARDS[c].short)).join(". ") : tx(s.title) + ". " + tx(s.body), e.currentTarget));
     ($("#snext", el) || $("#sdone", el))?.focus();
   };
   draw();
@@ -449,6 +452,7 @@ async function pageLesson(id) {
       <h1 style="font-size:34px">${esc(tx(L.title))}</h1>
       ${it.kind === "boss" ? `<div class="boss" id="boss">${spriteSVG("bugbeast", 54)}<div style="flex:1"><div class="small"><b>${t("bossHealth")}</b> · <span id="bugs">${t("bugsLeft", isDone(id) ? 0 : L.bugs)}</span></div><div class="hp"><i id="hp" style="width:${isDone(id) ? 0 : 100}%"></i></div></div></div>` : ""}
       <div class="guide">${spriteSVG(GUIDES[S.me.skin], 52, guideName)}<div class="bubble"><b>${esc(guideName)}:</b> ${esc(tx(L.story))}</div></div>
+      ${USES[id] ? `<div class="concepts" role="group" aria-label="${esc(t("conceptsHere"))}"><span class="small muted">${t("conceptsHere")}:</span>${USES[id].map((c) => `<button type="button" class="chip concept" data-concept="${c}" title="${esc(t("showConcept", tx(conceptNames()[c])))}">🧩 ${esc(tx(conceptNames()[c]))}</button>`).join("")}</div>` : ""}
       <div class="row">${SLIDES[id] ? `<button class="btn gold small" id="slidesbtn">📖 ${t("conceptSlides")}</button>` : ""}
         ${speech ? `<button class="btn ghost small" id="read">🔊 ${t("readAloud")}</button>` : ""}</div>
       <div class="panel"><h3>${t("goals")}</h3><ol class="goals">${L.goals[S.lang].map((x) => `<li>${esc(x)}</li>`).join("")}</ol>
@@ -573,6 +577,7 @@ async function pageLesson(id) {
   };
   renderHints();
   $("#slidesbtn")?.addEventListener("click", () => showSlides(id, { onDone: () => $("#slidesbtn")?.focus() }));
+  $$(".concepts [data-concept]").forEach((b) => (b.onclick = () => showSlides(id, { concept: b.dataset.concept, onDone: () => b.focus() })));
   if (SLIDES[id] && !isDone(id) && !store.get(slidesKey(id))) showSlides(id, { onDone: () => ed.focus?.() });
   $("#read")?.addEventListener("click", (e) => speak(tx(L.story) + ". " + t("goals") + ": " + L.goals[S.lang].join(". "), e.currentTarget));
 

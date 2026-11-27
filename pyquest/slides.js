@@ -6,13 +6,14 @@
 
 const T = (en, es) => ({ en, es });
 
+// Level slides. A slide with `concept` is where that concept is first taught in depth.
 export const SLIDES = {
   l1: [
     { title: T("What is code?", "¿Qué es el código?"),
       body: T("Code is a list of instructions for the computer. Python reads your code from the top down, one line at a time, and does exactly what it says. Not what you meant — what you wrote!",
         "El código es una lista de instrucciones para la computadora. Python lee tu código de arriba hacia abajo, una línea a la vez, y hace exactamente lo que dice. No lo que quisiste decir: ¡lo que escribiste!"),
       code: T('print("Hello!")\nprint("I am making a game")', 'print("¡Hola!")\nprint("Estoy haciendo un juego")') },
-    { title: T("Variables", "Variables"),
+    { concept: "variables", title: T("Variables", "Variables"),
       body: T("A variable is a labelled box that holds a value. The name goes on the left, then =, then the value. Later you can use the name instead of the value, and change it whenever you want.",
         "Una variable es una caja con etiqueta que guarda un valor. El nombre va a la izquierda, luego =, luego el valor. Después puedes usar el nombre en lugar del valor y cambiarlo cuando quieras."),
       code: T("speed = 4\nlives = 3\nspeed = 6     # now speed holds 6", "speed = 4\nlives = 3\nspeed = 6     # ahora speed guarda 6"),
@@ -35,11 +36,11 @@ export const SLIDES = {
   ],
 
   l2: [
-    { title: T("The game loop", "El ciclo del juego"),
+    { concept: "loops", title: T("The game loop", "El ciclo del juego"),
       body: T("A game is like a flip book. About 60 times every second it moves things a tiny bit and redraws the screen. That repeating cycle is called the GAME LOOP.",
         "Un juego es como un libro animado. Unas 60 veces por segundo mueve las cosas un poquito y vuelve a dibujar la pantalla. Ese ciclo que se repite se llama el CICLO DEL JUEGO."),
       pic: "loop" },
-    { title: T("Functions: a named job", "Funciones: una tarea con nombre"),
+    { concept: "functions", title: T("Functions: a named job", "Funciones: una tarea con nombre"),
       body: T("def makes a FUNCTION: a set of lines with a name. The lines that belong to it are indented (pushed in) by 4 spaces. Indenting matters in Python — it shows what is inside.",
         "def crea una FUNCIÓN: un grupo de líneas con nombre. Las líneas que le pertenecen tienen sangría (están metidas) 4 espacios. La sangría importa en Python: muestra qué está adentro."),
       code: T("def fall():\n    player.y += 2      # inside fall\nprint(\"hi\")          # NOT inside fall", "def fall():\n    player.y += 2      # dentro de fall\nprint(\"hola\")        # NO está dentro de fall") },
@@ -63,7 +64,7 @@ export const SLIDES = {
       body: T("An EVENT is something that happens while the game runs: a key press, a tap, two things bumping. Your code checks for events and reacts to them.",
         "Un EVENTO es algo que pasa mientras el juego corre: presionar una tecla, un toque, dos cosas que chocan. Tu código revisa los eventos y reacciona."),
       pic: "keys" },
-    { title: T("if: make a decision", "if: tomar una decisión"),
+    { concept: "conditionals", title: T("if: make a decision", "if: tomar una decisión"),
       body: T("if checks a question that is True or False. If it's True, the indented lines run. If it's False, Python skips them. Don't forget the colon : at the end!",
         "if revisa una pregunta que es True (verdadero) o False (falso). Si es True, se ejecutan las líneas con sangría. Si es False, Python las salta. ¡No olvides los dos puntos : al final!"),
       code: 'if key_down("right"):\n    player.x += 4' },
@@ -88,7 +89,7 @@ export const SLIDES = {
   ],
 
   l4: [
-    { title: T("Lists", "Listas"),
+    { concept: "lists", title: T("Lists", "Listas"),
       body: T("A LIST holds many values in one variable. Write them inside square brackets [ ], with commas between. One list can hold every enemy, brick or platform in your game.",
         "Una LISTA guarda muchos valores en una variable. Escríbelos entre corchetes [ ], separados por comas. Una lista puede guardar todos los enemigos, ladrillos o plataformas de tu juego."),
       code: 'colors = ["red", "blue", "gold"]\nplatforms = [ground]',
@@ -97,7 +98,7 @@ export const SLIDES = {
       body: T(".append() adds a new item to the end of a list. len() tells you how many items it has.",
         ".append() agrega un elemento nuevo al final de una lista. len() te dice cuántos elementos tiene."),
       code: T("enemies = []\nenemies.append(Sprite(\"slime\", x=100, y=50))\nprint(len(enemies))   # 1", "enemies = []\nenemies.append(Sprite(\"slime\", x=100, y=50))\nprint(len(enemies))   # 1") },
-    { title: T("for loops", "Bucles for"),
+    { concept: "loops", title: T("for loops", "Bucles for"),
       body: T("A FOR LOOP does the same job once for each item in a list. Each time around, the loop variable (here, e) is the next item.",
         "Un BUCLE FOR hace la misma tarea una vez por cada elemento de una lista. En cada vuelta, la variable del bucle (aquí, e) es el siguiente elemento."),
       code: T("for e in enemies:\n    e.y += 2      # every enemy moves down", "for e in enemies:\n    e.y += 2      # cada enemigo baja") },
@@ -174,7 +175,7 @@ export const SLIDES = {
   ],
 
   boss: [
-    { title: T("What is a bug?", "¿Qué es un bicho (bug)?"),
+    { concept: "debugging", title: T("What is a bug?", "¿Qué es un bicho (bug)?"),
       body: T("A BUG is a mistake in code. Every programmer makes them, every day. Finding and fixing them is called DEBUGGING, and it's a real skill you can get good at.",
         "Un BUG (bicho) es un error en el código. Todos los programadores los cometen, todos los días. Encontrarlos y arreglarlos se llama DEPURAR, y es una habilidad real en la que puedes mejorar.") },
     { title: T("Error messages are clues", "Los mensajes de error son pistas"),
@@ -218,6 +219,83 @@ export const SLIDES = {
   ],
 };
 
+// ---------- concept introductions ----------
+// One card per concept. Every level's deck starts with an overview of the concepts it uses, then a card for
+// each one (unless the level's own slides already teach it), so students meet the idea every time it comes up.
+// Students can also tap a concept chip on the level page to see its card on its own.
+export const CONCEPT_CARDS = {
+  variables: {
+    pic: "box",
+    short: T("Named boxes that hold values, like score or speed.", "Cajas con nombre que guardan valores, como score o speed."),
+    body: T("A VARIABLE is a named box that holds a value. Make one with a name, =, and a value. Use the name to read it, and change it any time. Games are full of them: speed, score, lives, x and y.",
+      "Una VARIABLE es una caja con nombre que guarda un valor. Créala con un nombre, = y un valor. Usa el nombre para leerla y cámbiala cuando quieras. Los juegos están llenos de ellas: speed, score, lives, x e y."),
+    code: T("score = 0       # make it\nscore += 1      # change it\nprint(score)    # use it: shows 1", "score = 0       # créala\nscore += 1      # cámbiala\nprint(score)    # úsala: muestra 1"),
+  },
+  conditionals: {
+    pic: "fork",
+    short: T("if / else: let the game make decisions.", "if / else: deja que el juego tome decisiones."),
+    body: T("A CONDITIONAL lets your game make a decision. if checks a question that is True or False. When it's True, the indented lines run; else runs when it's False. Events like key presses and crashes are checked with if.",
+      "Un CONDICIONAL deja que tu juego tome una decisión. if revisa una pregunta que es True o False. Cuando es True, se ejecutan las líneas con sangría; else se ejecuta cuando es False. Los eventos como teclas y choques se revisan con if."),
+    code: T('if key_down("right"):\n    player.x += 4\nelse:\n    player.x += 0', 'if key_down("right"):\n    player.x += 4\nelse:\n    player.x += 0'),
+  },
+  loops: {
+    pic: "loop",
+    short: T("Repeat code: the game loop and for loops.", "Repetir código: el ciclo del juego y los bucles for."),
+    body: T("A LOOP repeats code so you don't have to write it again and again. Your game has two kinds: the GAME LOOP (@every_frame runs 60 times a second) and the FOR LOOP (do the same job for each item in a list).",
+      "Un BUCLE repite código para que no tengas que escribirlo una y otra vez. Tu juego tiene dos tipos: el CICLO DEL JUEGO (@every_frame se ejecuta 60 veces por segundo) y el BUCLE FOR (hace la misma tarea con cada elemento de una lista)."),
+    code: T("for e in enemies:     # each enemy...\n    e.y += 2          # ...moves down", "for e in enemies:     # cada enemigo...\n    e.y += 2          # ...baja"),
+  },
+  lists: {
+    pic: "list",
+    short: T("Many things in one variable, inside [ ].", "Muchas cosas en una variable, dentro de [ ]."),
+    body: T("A LIST holds many values in one variable, inside square brackets [ ]. .append() adds one more to the end. Lists keep track of every coin, brick, enemy or laser in your game.",
+      "Una LISTA guarda muchos valores en una variable, dentro de corchetes [ ]. .append() agrega uno más al final. Las listas llevan la cuenta de cada moneda, ladrillo, enemigo o láser de tu juego."),
+    code: 'coins = []\ncoins.append(Sprite("coin", x=100, y=200))\nprint(len(coins))   # 1',
+  },
+  functions: {
+    pic: "machine",
+    short: T("A named job you write once and use again.", "Una tarea con nombre que escribes una vez y reutilizas."),
+    body: T("A FUNCTION is a named job. Write it once with def, and the indented lines belong to it. Then CALL it by name to run it — as many times as you like. Parameters in ( ) let you pass it inputs.",
+      "Una FUNCIÓN es una tarea con nombre. Escríbela una vez con def, y las líneas con sangría le pertenecen. Luego LLÁMALA por su nombre para ejecutarla, cuantas veces quieras. Los parámetros en ( ) te dejan darle entradas."),
+    code: T('def cheer(name):\n    print("Go, " + name + "!")\n\ncheer("Maya")    # Go, Maya!\ncheer("Leo")     # Go, Leo!', 'def cheer(name):\n    print("¡Vamos, " + name + "!")\n\ncheer("Maya")    # ¡Vamos, Maya!\ncheer("Leo")     # ¡Vamos, Leo!'),
+  },
+  debugging: {
+    short: T("Finding and fixing mistakes in code.", "Encontrar y arreglar errores en el código."),
+    body: T("DEBUGGING means finding and fixing mistakes (bugs). Read the error message and go to its line number. If there's no error but the game acts wrong, change one thing at a time and test again. print() lets you peek at values.",
+      "DEPURAR significa encontrar y arreglar errores (bugs). Lee el mensaje de error y ve al número de línea. Si no hay error pero el juego hace algo raro, cambia una cosa a la vez y prueba otra vez. print() te deja ver los valores."),
+    code: T("print(player.x, score)    # peek inside!", "print(player.x, score)    # ¡mira adentro!"),
+  },
+};
+
+// Which concepts each level uses (what students will actually type or read in that level's code).
+export const USES = {
+  l1: ["variables"],
+  l2: ["variables", "functions", "loops"],
+  l3: ["conditionals", "variables"],
+  l4: ["lists", "loops"],
+  l5: ["conditionals", "loops", "variables", "lists"],
+  side1: ["variables", "conditionals"],
+  l6: ["functions", "lists", "loops"],
+  boss: ["debugging", "variables", "conditionals", "loops"],
+  mygame: ["conditionals", "functions", "loops", "lists", "variables"],
+};
+
+// A single concept card as a slide.
+export const conceptSlide = (cid, names) => ({ ...CONCEPT_CARDS[cid], conceptCard: cid, title: names[cid] });
+
+// The full deck for a level: overview → a card per concept it uses (skipping any its own slides teach) → its own slides.
+export function deckFor(id, names) {
+  const own = SLIDES[id] || [];
+  const uses = USES[id] || [];
+  if (!uses.length) return own;
+  const taught = new Set(own.map((s) => s.concept).filter(Boolean));
+  return [
+    { overview: uses, title: T("Concepts in this level", "Conceptos de este nivel") },
+    ...uses.filter((c) => !taught.has(c)).map((c) => conceptSlide(c, names)),
+    ...own,
+  ];
+}
+
 // Small pictures for some slides. They use the page's colours so they match every world skin.
 const W = 'xmlns="http://www.w3.org/2000/svg" role="img"';
 export const PICS = {
@@ -225,6 +303,11 @@ export const PICS = {
     <rect x="90" y="30" width="120" height="70" rx="10" fill="var(--panel2)" stroke="var(--support)" stroke-width="3"/>
     <rect x="110" y="12" width="80" height="28" rx="6" fill="var(--gold)"/><text x="150" y="32" text-anchor="middle" font-weight="800" fill="#3a2a00" font-size="16">speed</text>
     <text x="150" y="80" text-anchor="middle" font-size="34" font-weight="800" fill="var(--ink)">4</text></svg>`,
+  fork: (lang) => `<svg ${W} viewBox="0 0 300 150" aria-label="${lang === "es" ? "Una pregunta con dos caminos: True y False" : "A question with two paths: True and False"}">
+    <rect x="95" y="10" width="110" height="38" rx="10" fill="var(--panel2)" stroke="var(--gold)" stroke-width="3"/><text x="150" y="35" text-anchor="middle" font-weight="800" fill="var(--ink)" font-size="15">if ... ?</text>
+    <path d="M130 50 L70 100 M170 50 L230 100" stroke="var(--line)" stroke-width="4"/>
+    <rect x="20" y="100" width="100" height="36" rx="10" fill="color-mix(in srgb, var(--good) 30%, var(--panel))"/><text x="70" y="124" text-anchor="middle" font-weight="800" fill="var(--good)" font-size="15">True → run</text>
+    <rect x="180" y="100" width="100" height="36" rx="10" fill="color-mix(in srgb, var(--bad) 30%, var(--panel))"/><text x="230" y="124" text-anchor="middle" font-weight="800" fill="var(--bad)" font-size="15">${lang === "es" ? "False → salta" : "False → skip"}</text></svg>`,
   grid: (lang) => `<svg ${W} viewBox="0 0 300 250" aria-label="${lang === "es" ? "La pantalla: x crece a la derecha, y crece hacia abajo" : "The screen: x grows to the right, y grows downward"}">
     <rect x="50" y="30" width="200" height="200" fill="var(--panel2)" stroke="var(--line)" stroke-width="2"/>
     ${[1, 2, 3].map((i) => `<line x1="${50 + i * 50}" y1="30" x2="${50 + i * 50}" y2="230" stroke="var(--line)"/><line x1="50" y1="${30 + i * 50}" x2="250" y2="${30 + i * 50}" stroke="var(--line)"/>`).join("")}

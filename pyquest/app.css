@@ -244,3 +244,11 @@ body.a11y-motion *, body.a11y-motion *::before { animation: none !important; tra
 .slides .quiz .btn:disabled:not(.go):not(.bad) { opacity: .5; }
 @media (max-width: 700px) { .slidebody:has(.pic) { grid-template-columns: 1fr; } .slidebody .pic { max-width: 320px; } #slide h2 { font-size: 26px; } }
 @media print { .slides { display: none; } }
+.concepts { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+button.chip.concept { border: 2px solid var(--support); color: var(--ink); cursor: pointer; min-height: 36px; font: 800 14px var(--font); }
+button.chip.concept:hover { background: color-mix(in srgb, var(--support) 25%, transparent); }
+h2 .chip.concept { font-size: 15px; vertical-align: middle; border: 2px solid var(--support); }
+.slides .overview { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.slides .overview li { display: grid; grid-template-columns: 150px 1fr; gap: 12px; align-items: center; background: var(--panel2); border-radius: 12px; padding: 12px 16px; font-size: 18px; }
+.slides .overview li b { color: var(--gold); font-family: var(--title); }
+@media (max-width: 700px) { .slides .overview li { grid-template-columns: 1fr; gap: 2px; } }
