@@ -667,17 +667,34 @@ const WORDS = ["star", "comet", "rocket", "pixel", "coral", "wave", "island", "d
 const genPw = () => WORDS[Math.floor(Math.random() * WORDS.length)] + (10 + Math.floor(Math.random() * 90));
 
 async function loadTeacher() {
+  T.classId ||= store.get("pq-teacher-class") || "";
   T.data = await api("GET", "/api/teacher/overview" + (T.classId ? "?class=" + encodeURIComponent(T.classId) : ""));
   T.classId = T.data.classId; T.at = Date.now();
+  if (T.classId) store.set("pq-teacher-class", T.classId);
 }
+// Class names in the menu: numbered when two share a name, with each class's student count.
+function classLabels(classes) {
+  const seen = {}, count = {};
+  classes.forEach((c) => (count[c.name] = (count[c.name] || 0) + 1));
+  return Object.fromEntries(classes.map((c) => {
+    seen[c.name] = (seen[c.name] || 0) + 1;
+    return [c.id, c.name + (count[c.name] > 1 ? " #" + seen[c.name] : "")];
+  }));
+}
+const allMode = () => T.classId === "all";
 async function pageTeacher() {
   header("teacher");
   if (!T.data) await loadTeacher();
-  const D = T.data;
+  const D = T.data, L = classLabels(D.classes);
+  const total = D.classes.reduce((n, c) => n + c.students, 0);
+  const cur = D.classes.find((c) => c.id === D.classId);
   main.innerHTML = `<div class="page">
     <div class="row"><h1 style="margin:0">${t("dashboard")}</h1><span class="spacer"></span>
-      <select id="cls" style="width:auto" aria-label="${t("className")}">${D.classes.map((c) => `<option value="${esc(c.id)}" ${c.id === D.classId ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select>
+      <select id="cls" style="width:auto" aria-label="${t("className")}">
+        ${D.classes.length > 1 ? `<option value="all" ${D.classId === "all" ? "selected" : ""}>${esc(t("allClasses"))} (${t("nStudents", total)})</option>` : ""}
+        ${D.classes.map((c) => `<option value="${esc(c.id)}" ${c.id === D.classId ? "selected" : ""}>${esc(L[c.id])} (${t("nStudents", c.students)})</option>`).join("")}</select>
       <button class="btn small" id="addcls">+ ${t("addClass")}</button>
+      ${cur && cur.students === 0 && D.classes.length > 1 ? `<button class="btn ghost small" id="delcls">${t("removeClass")}</button>` : ""}
       <span class="chip"><span class="dot"></span>${t("live")} · <span id="ago">${t("updated", 0)}</span></span></div>
     <div class="tabs" role="tablist">${["progress", "mastery", "errors", "students", "controls", "leaderboard"].map((k) => `<button role="tab" data-tab="${k}" aria-selected="${T.tab === k}">${t(k)}</button>`).join("")}</div>
     <section id="tab"></section></div>`;
@@ -687,6 +704,11 @@ async function pageTeacher() {
     const { el, close } = openModal(`<h2 id="modal-title">${t("addClass")}</h2><label>${t("className")}<input type="text" id="cn" maxlength="40" autofocus></label><div class="row"><button class="btn primary" id="ok">${t("create")}</button><button class="btn ghost" data-close>${t("close")}</button></div>`);
     $("#ok", el).onclick = async () => { const r = await api("POST", "/api/teacher/classes", { name: $("#cn", el).value || "New class" }); T.classId = r.id; close(); await loadTeacher(); pageTeacher(); };
   };
+  $("#delcls")?.addEventListener("click", () => {
+    const { el, close } = openModal(`<h2 id="modal-title">${t("removeClass")}</h2><p>${esc(t("removeClassHelp", L[cur.id]))}</p>
+      <div class="row"><button class="btn primary" id="y">${t("removeClass")}</button><button class="btn ghost" data-close autofocus>${t("close")}</button></div>`);
+    $("#y", el).onclick = async () => { try { await api("DELETE", "/api/teacher/classes/" + encodeURIComponent(cur.id)); T.classId = "all"; close(); await loadTeacher(); pageTeacher(); } catch (e) { toast(e.message.replace(/_/g, " ")); } };
+  });
   ({ progress: tabProgress, mastery: tabMastery, errors: tabErrors, students: tabStudents, controls: tabControls, leaderboard: tabBoard })[T.tab]($("#tab"), D);
   clearInterval(T.poll);
   T.poll = setInterval(async () => {
@@ -696,13 +718,14 @@ async function pageTeacher() {
   }, 5000);
 }
 const whoHTML = (s) => `<span class="who">${avatarHTML(s.avatar, 30)}<b>${esc(s.name)}</b>${s.last_seen && Date.now() - s.last_seen < 120e3 ? `<span class="dot" title="${t("online")}"></span>` : ""}</span>`;
+const classOf = (s) => (allMode() && s.class_id ? ` · ${esc(classLabels(T.data.classes)[s.class_id] || "")}` : "");
 
 function tabProgress(el, D) {
   if (!D.students.length) { el.innerHTML = `<p class="panel">${t("noStudents")}</p>`; return; }
   const stuck = D.students.filter((s) => Object.values(s.progress).some(isStuck));
   el.innerHTML = `${stuck.length ? `<div class="result bad" style="margin:12px 0">${t("stuck")}: ${stuck.map((s) => esc(s.name)).join(", ")}</div>` : ""}
     <div class="panel scroll" style="margin-top:12px"><table><thead><tr><th>${t("student")}</th>${ITEMS.map((i) => `<th title="${esc(tx(LEVELS[i.id].title))}">${i.short}</th>`).join("")}<th class="num">${t("xp")}</th></tr></thead><tbody>
-    ${D.students.map((s) => `<tr><td><button class="btn ghost small" data-stu="${esc(s.id)}">${whoHTML(s)}</button><br><span class="small muted">${GAME_TYPES[s.game_type] ? esc(tx(GAME_TYPES[s.game_type].name)) : "–"}</span></td>${ITEMS.map((i) => {
+    ${D.students.map((s) => `<tr><td><button class="btn ghost small" data-stu="${esc(s.id)}">${whoHTML(s)}</button><br><span class="small muted">${GAME_TYPES[s.game_type] ? esc(tx(GAME_TYPES[s.game_type].name)) : "–"}${classOf(s)}</span></td>${ITEMS.map((i) => {
       const p = s.progress[i.id]; const cls = !p ? "none" : isStuck(p) ? "stuck" : p.status;
       const lab = !p ? "–" : p.status === "done" ? "✓" : p.status === "skipped" ? "S" : "…";
       return `<td><span class="cell ${cls}" title="${esc(tx(LEVELS[i.id].title))}${p ? ` · attempts ${p.attempts} · hints ${p.hints_used}` : ""}">${lab}</span></td>`;
@@ -741,18 +764,21 @@ function tabErrors(el, D) {
 }
 
 function tabStudents(el, D) {
+  const L = classLabels(D.classes);
   el.innerHTML = `<div class="panel" style="margin-top:12px"><h2>${t("addStudents")}</h2><p class="small muted">${t("addStudentsHelp")}</p>
+    <label style="max-width:360px;margin-bottom:10px">${t("addToClass")}<select id="toclass">${D.classes.map((c) => `<option value="${esc(c.id)}" ${c.id === D.classId || (allMode() && c === D.classes[0]) ? "selected" : ""}>${esc(L[c.id])}</option>`).join("")}</select></label>
     <textarea id="bulk" rows="6" placeholder="${esc(t("sampleLine"))}" style="font-family:var(--code)"></textarea>
     <div class="row" style="margin-top:10px"><button class="btn primary" id="mk">${t("create")}</button><span class="spacer"></span>${D.students.length ? `<button class="btn ghost small" id="allcards">🖨 ${t("newPwAll")}</button>` : ""}</div><div id="mkres"></div></div>
-    <div class="panel scroll" style="margin-top:12px"><table class="stack"><thead><tr><th>${t("student")}</th><th>${t("username")}</th><th class="num">${t("xp")}</th><th></th></tr></thead><tbody>
-    ${D.students.map((s) => `<tr><td data-l="${t("student")}">${whoHTML(s)}</td><td data-l="${t("username")}"><code>${esc(s.username)}</code></td><td class="num" data-l="${t("xp")}">${s.xp}</td>
+    <div class="panel scroll" style="margin-top:12px"><h2 style="margin-top:0">${t("students")} (${D.students.length})</h2><table class="stack"><thead><tr><th>${t("student")}</th><th>${t("username")}</th><th>${t("className")}</th><th class="num">${t("xp")}</th><th></th></tr></thead><tbody>
+    ${D.students.length ? "" : `<tr><td colspan="5" class="muted">${t("noStudents")}</td></tr>`}
+    ${D.students.map((s) => `<tr><td data-l="${t("student")}">${whoHTML(s)}</td><td data-l="${t("username")}"><code>${esc(s.username)}</code></td><td data-l="${t("className")}">${esc(L[s.class_id] || "")}</td><td class="num" data-l="${t("xp")}">${s.xp}</td>
       <td><div class="row"><button class="btn small" data-stu="${esc(s.id)}">${t("viewCode")}</button><button class="btn small" data-pw="${esc(s.id)}">${t("resetPw")}</button><button class="btn ghost small" data-del="${esc(s.id)}" data-name="${esc(s.name)}">${t("del")}</button></div></td></tr>`).join("")}
     </tbody></table></div>`;
   $("#mk").onclick = async () => {
     const students = $("#bulk").value.split("\n").map((l) => l.split(",").map((x) => x.trim())).filter((p) => p[0])
       .map(([username, name, password]) => ({ username, name: name || username, password: password || genPw() }));
     if (!students.length) return;
-    const r = await api("POST", "/api/teacher/students", { classId: T.classId, students });
+    const r = await api("POST", "/api/teacher/students", { classId: $("#toclass").value, students });
     const made = students.filter((s) => r.created.includes(s.username));
     $("#mkres").innerHTML = `<div class="result good" style="margin-top:10px">${t("created", r.created.length)}</div>
       ${made.length ? `<div class="scroll"><table><thead><tr><th>${t("student")}</th><th>${t("username")}</th><th>${t("password")}</th></tr></thead><tbody>${made.map((s) => `<tr><td>${esc(s.name)}</td><td><code>${esc(s.username)}</code></td><td><code>${esc(s.password)}</code></td></tr>`).join("")}</tbody></table></div>
@@ -761,6 +787,10 @@ function tabStudents(el, D) {
       ${r.problems.length ? `<div class="result bad">${t("problems")} ${r.problems.map((p) => `${esc(p.username)} (${esc(p.error.replace(/_/g, " "))})`).join(", ")}</div>` : ""}`;
     $("#printmade")?.addEventListener("click", () => printCards(made));
     $("#bulk").value = ""; await loadTeacher();
+    if (r.created.length) {           // redraw the list and class counts, keeping the new passwords on screen
+      const keep = $("#mkres").innerHTML; await pageTeacher();
+      $("#mkres").innerHTML = keep; $("#printmade")?.addEventListener("click", () => printCards(made));
+    }
   };
   if ($("#allcards")) $("#allcards").onclick = () => {
     const { el: m, close } = openModal(`<h2 id="modal-title">${t("newPwAll")}</h2><p>${t("newPwAllHelp")}</p>
@@ -804,6 +834,7 @@ function resetPw(id) {
 }
 
 function tabControls(el, D) {
+  if (allMode()) { el.innerHTML = `<div class="panel" style="margin-top:12px"><h2>${t("controls")}</h2><p>${t("pickOneClass")}</p></div>`; return; }
   el.innerHTML = `<div class="panel" style="margin-top:12px"><h2>${t("controls")}</h2><p class="muted">${t("lockHelp")}</p>
     ${ITEMS.map((i) => `<label class="toggle"><span>${i.short} · ${esc(tx(LEVELS[i.id].title))}</span><span class="row small">${D.locks.includes(i.id) ? "🔒 " + t("locked") : ""}<input type="checkbox" data-lock="${i.id}" ${D.locks.includes(i.id) ? "checked" : ""} aria-label="${t("lock")} ${esc(tx(LEVELS[i.id].title))}"></span></label>`).join("")}</div>`;
   $$("[data-lock]", el).forEach((c) => (c.onchange = async () => {
