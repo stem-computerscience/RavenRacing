@@ -3,6 +3,7 @@ import { LEVELS, SNIPPETS } from "./lessons.js";
 import { GAME_TYPES, ensureLevel, markerRe, langPick } from "./games.js";
 import { UNIT, CONCEPTS, BADGES, SHOP, HINT_COST, isUnlocked, mastery, levelFor } from "./curriculum.js";
 import { spriteSVG, GUIDES } from "./sprites.js";
+import { SLIDES, PICS } from "./slides.js";
 
 // ---------- state & helpers ----------
 const S = { me: null, progress: {}, locks: [], notes: [], game: null, className: "", lang: "en", status: null };
@@ -80,6 +81,51 @@ function speak(text, btn) {
   u.onend = () => { if (btn) btn.textContent = "🔊 " + t("readAloud"); };
   if (btn) btn.textContent = "■ " + t("stopReading");
   speechSynthesis.speak(u);
+}
+
+// ---------- concept slides (shown the first time a level opens; reopen any time) ----------
+const slidesKey = (id) => `pq-slides-${S.me?.id}-${id}`;
+function showSlides(id, { onDone } = {}) {
+  const deck = SLIDES[id];
+  if (!deck) return;
+  store.set(slidesKey(id), "1");
+  let i = 0, picked = null;
+  const L = levelData(id), guideName = obj("guides")[S.me.skin];
+  const { el, close } = openModal(`<div class="slides" role="region" aria-roledescription="${esc(t("slides"))}" aria-labelledby="modal-title"><div id="slide"></div></div>`, { wide: true, onClose: () => { speech && speechSynthesis.cancel(); document.removeEventListener("keydown", onKey); onDone?.(); } });
+  const onKey = (e) => {
+    if (e.target.closest("input, textarea")) return;
+    if (e.key === "ArrowRight") { e.preventDefault(); move(1); }
+    if (e.key === "ArrowLeft") { e.preventDefault(); move(-1); }
+  };
+  document.addEventListener("keydown", onKey);
+  const move = (d) => { const n = i + d; if (n < 0 || n >= deck.length) return; speech && speechSynthesis.cancel(); i = n; picked = null; draw(); };
+  const draw = () => {
+    const s = deck[i], last = i === deck.length - 1;
+    const code = s.code ? (typeof s.code === "string" ? s.code : tx(s.code)) : "";
+    $("#slide", el).innerHTML = `
+      <div class="row"><span class="chip">📖 ${esc(tx(L.title))}</span><span class="spacer"></span><span class="small muted">${t("slideOf", i + 1, deck.length)}</span></div>
+      <div class="dots" aria-hidden="true">${deck.map((_, j) => `<i class="${j === i ? "on" : j < i ? "past" : ""}"></i>`).join("")}</div>
+      <h2 id="modal-title">${esc(tx(s.title))}</h2>
+      ${s.quiz ? `<p class="lead">${esc(tx(s.q))}</p>
+        <div class="quiz" role="group" aria-label="${esc(tx(s.q))}">${s.options.map((o, j) => `<button type="button" class="btn ${picked === null ? "" : j === s.answer ? "go" : j === picked ? "bad" : ""}" data-j="${j}" ${picked !== null ? "disabled" : ""}><code>${esc(tx(o))}</code></button>`).join("")}</div>
+        <div aria-live="polite">${picked === null ? "" : `<div class="result ${picked === s.answer ? "good" : "bad"}"><b>${picked === s.answer ? t("quizRight") : t("quizWrong")}</b> ${esc(tx(s.why))}</div>`}</div>`
+      : `<div class="slidebody">${s.pic ? `<div class="pic">${PICS[s.pic](S.lang)}</div>` : ""}<div>
+          <div class="guide">${spriteSVG(GUIDES[S.me.skin], 44, guideName)}<div class="bubble">${esc(tx(s.body))}</div></div>
+          ${code ? `<pre class="code">${esc(code)}</pre>` : ""}</div></div>`}
+      <div class="row">
+        <button class="btn ghost" id="sprev" ${i === 0 ? "disabled" : ""}>← ${t("back")}</button>
+        ${speech ? `<button class="btn ghost small" id="sread">🔊 ${t("readAloud")}</button>` : ""}
+        <span class="spacer"></span>
+        ${last ? `<button class="btn go" data-close autofocus>${t("startCoding")} →</button>` : `<button class="btn primary" id="snext" autofocus>${t("next")} →</button>`}
+      </div>`;
+    $("#sprev", el).onclick = () => move(-1);
+    $("#snext", el)?.addEventListener("click", () => move(1));
+    $$(".quiz button", el).forEach((b) => (b.onclick = () => { picked = +b.dataset.j; draw(); }));
+    $("#sread", el)?.addEventListener("click", (e) => speak(s.quiz ? tx(s.q) + ". " + s.options.map((o) => tx(o)).join(". ") : tx(s.title) + ". " + tx(s.body), e.currentTarget));
+    ($("#snext", el) || $("[data-close]", el))?.focus();
+  };
+  draw();
+  return close;
 }
 
 // ---------- the sandboxed Python game runner ----------
@@ -402,7 +448,8 @@ async function pageLesson(id) {
       <h1 style="font-size:34px">${esc(tx(L.title))}</h1>
       ${it.kind === "boss" ? `<div class="boss" id="boss">${spriteSVG("bugbeast", 54)}<div style="flex:1"><div class="small"><b>${t("bossHealth")}</b> · <span id="bugs">${t("bugsLeft", isDone(id) ? 0 : L.bugs)}</span></div><div class="hp"><i id="hp" style="width:${isDone(id) ? 0 : 100}%"></i></div></div></div>` : ""}
       <div class="guide">${spriteSVG(GUIDES[S.me.skin], 52, guideName)}<div class="bubble"><b>${esc(guideName)}:</b> ${esc(tx(L.story))}</div></div>
-      ${speech ? `<button class="btn ghost small" id="read">🔊 ${t("readAloud")}</button>` : ""}
+      <div class="row">${SLIDES[id] ? `<button class="btn gold small" id="slidesbtn">📖 ${t("conceptSlides")}</button>` : ""}
+        ${speech ? `<button class="btn ghost small" id="read">🔊 ${t("readAloud")}</button>` : ""}</div>
       <div class="panel"><h3>${t("goals")}</h3><ol class="goals">${L.goals[S.lang].map((x) => `<li>${esc(x)}</li>`).join("")}</ol>
         ${L.inFile ? `<p class="small muted" style="margin:8px 0 0">${t("growsHere")}</p>` : ""}</div>
       ${notes.map((n) => `<div class="note"><b>${t("teacherNote")}:</b> ${esc(n.body)}</div>`).join("")}
@@ -524,6 +571,8 @@ async function pageLesson(id) {
     S.progress[id] = { ...S.progress[id], ...r.row }; renderHints();
   };
   renderHints();
+  $("#slidesbtn")?.addEventListener("click", () => showSlides(id, { onDone: () => $("#slidesbtn")?.focus() }));
+  if (SLIDES[id] && !isDone(id) && !store.get(slidesKey(id))) showSlides(id, { onDone: () => ed.focus?.() });
   $("#read")?.addEventListener("click", (e) => speak(tx(L.story) + ". " + t("goals") + ": " + L.goals[S.lang].join(". "), e.currentTarget));
 
   if (id === "mygame") renderBuild(async (title) => { S.game.code = ed.get(); await saveGameFile({ title }); });

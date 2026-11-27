@@ -220,3 +220,27 @@ body.a11y-motion *, body.a11y-motion *::before { animation: none !important; tra
 .login .art::before { content: ""; position: absolute; inset: auto 0 0 0; height: 60%; background: linear-gradient(transparent, rgba(0,0,0,.45)); pointer-events: none; }
 
 .swatch { display: grid; justify-items: center; gap: 4px; font-weight: 700; }
+
+/* concept slides */
+.slides { display: grid; gap: 14px; }
+#slide { display: grid; gap: 14px; min-height: 360px; align-content: start; }
+#slide h2 { font-size: 32px; margin: 0; }
+#slide .row:last-child { margin-top: auto; }
+.slides .dots { display: flex; gap: 6px; }
+.slides .dots i { flex: 1; height: 6px; border-radius: 99px; background: var(--line); }
+.slides .dots i.past { background: var(--support); opacity: .55; }
+.slides .dots i.on { background: var(--gold); }
+.slidebody { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); align-items: start; }
+.slidebody:has(.pic) { grid-template-columns: minmax(0, 300px) minmax(0, 1fr); }
+.slidebody .pic svg { width: 100%; height: auto; background: var(--panel2); border-radius: 14px; padding: 6px; font-family: var(--font); }
+.slidebody .bubble { font-size: 19px; line-height: 1.5; }
+.slides pre.code { margin: 12px 0 0; background: #0a1520; color: #e8f3ff; border-radius: 12px; padding: 14px 16px; font: 16px/1.55 var(--code); overflow-x: auto; white-space: pre; }
+.slides .lead { font-size: 21px; font-weight: 700; margin: 0; }
+.slides .quiz { display: grid; gap: 10px; }
+.slides .quiz .btn { justify-content: flex-start; white-space: normal; text-align: left; min-height: 52px; font-size: 18px; }
+.slides .quiz .btn code { font: inherit; }
+.slides .quiz .btn.bad { background: var(--bad); color: #fff; }
+.slides .quiz .btn:disabled { opacity: 1; cursor: default; }
+.slides .quiz .btn:disabled:not(.go):not(.bad) { opacity: .5; }
+@media (max-width: 700px) { .slidebody:has(.pic) { grid-template-columns: 1fr; } .slidebody .pic { max-width: 320px; } #slide h2 { font-size: 26px; } }
+@media print { .slides { display: none; } }
