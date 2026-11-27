@@ -1,7 +1,7 @@
 import { STR, fmt } from "./i18n.js";
 import { LEVELS, SNIPPETS } from "./lessons.js";
 import { GAME_TYPES, ensureLevel, markerRe, langPick } from "./games.js";
-import { UNIT, CONCEPTS, BADGES, SHOP, HINT_COST, isUnlocked, mastery, levelFor } from "./curriculum.js";
+import { UNIT, CONCEPTS, BADGES, SHOP, HINT_COST, WORLDS, isUnlocked, mastery, levelFor } from "./curriculum.js";
 import { spriteSVG, GUIDES } from "./sprites.js";
 import { SLIDES, PICS, USES, CONCEPT_CARDS, deckFor, conceptSlide, detailSlide } from "./slides.js";
 
@@ -272,43 +272,59 @@ function nodeShape(skin, state, color) {
   if (skin === "ocean") return `<path d="M-50 40 Q-48 -30 0 -44 Q48 -30 50 40Z" fill="${fill}"/><circle cx="-16" cy="-18" r="8" fill="#fff" opacity=".35"/><path d="M-60 44 q8 -30 0 -60 M60 44 q-8 -30 0 -60" stroke="#2ecc71" stroke-width="6" fill="none" opacity="${dim ? 0.3 : 0.8}"/>`;
   return `<ellipse cx="0" cy="0" rx="66" ry="16" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="4" transform="rotate(-14)"/><circle r="44" fill="${fill}"/><circle cx="-14" cy="-14" r="16" fill="#fff" opacity=".18"/>`;
 }
-const POS = { l1: [140, 500], l2: [270, 400], l3: [170, 240], l4: [380, 140], l5: [560, 250], side1: [560, 470], l6: [740, 150], boss: [880, 300], mygame: [860, 500] };
-const NODE_COL = ["#ff6b4a", "#3fd0c9", "#ffd23f", "#ff7aa8", "#7bed9f", "#a29bfe", "#48dbfb", "#ff4757", "#ff9f43"];
+// The map shows one world at a time: 5 worlds × 7 stops (L, L, side quest, L, L, side quest, boss), then the final build.
+const ROUTE = UNIT.filter((u) => u.kind !== "build");
+const worldOf = (id) => (id === "mygame" ? WORLDS.length - 1 : Math.floor(ROUTE.findIndex((u) => u.id === id) / 7));
+const SLOT = [[90, 175], [265, 175], [395, 330], [535, 175], [710, 175], [840, 330], [960, 175]];
+const NODE_COL = ["#ff6b4a", "#3fd0c9", "#ffd23f", "#ff7aa8", "#7bed9f", "#a29bfe", "#ff4757", "#ff9f43"];
 
-function mapSVG() {
-  const W = 1000, H = 640, skin = S.me.skin, cur = currentId();
-  const main = UNIT.filter((u) => u.kind !== "side").map((u) => POS[u.id]);
+function mapSVG(w) {
+  const W = 1120, H = 460, skin = S.me.skin, cur = currentId();
+  const stops = ROUTE.slice(w * 7, w * 7 + 7).map((u, i) => ({ u, pos: SLOT[i], col: NODE_COL[i] }));
+  if (w === WORLDS.length - 1) stops.push({ u: item("mygame"), pos: [1045, 340], col: NODE_COL[7] });
+  const main = stops.filter((x) => x.u.kind !== "side").map((x) => x.pos);
   let d = `M${main[0][0]} ${main[0][1]}`;
   for (let i = 1; i < main.length; i++) { const [x0, y0] = main[i - 1], [x1, y1] = main[i]; d += ` C${x0 + (x1 - x0) * 0.5} ${y0}, ${x0 + (x1 - x0) * 0.5} ${y1}, ${x1} ${y1}`; }
-  const nodes = UNIT.map((u, i) => {
-    const [x, y] = POS[u.id], st = isDone(u.id) ? "done" : unlocked(u.id) ? (u.id === cur ? "current" : "open") : "locked";
-    const title = levelTitle(u.id), num = UNIT.filter((v) => v.kind === "lesson").indexOf(u) + 1;
+  const branches = stops.map((x, i) => (x.u.kind === "side" ? [stops[i - 1].pos, x.pos] : null)).filter(Boolean)
+    .map(([[sx, sy], [bx, by]]) => `<path d="M${sx} ${sy} Q${sx + 10} ${by} ${bx} ${by}" fill="none" stroke="var(--gold)" stroke-opacity=".6" stroke-width="5" stroke-dasharray="2 14" stroke-linecap="round"/>`).join("");
+  const nodes = stops.map(({ u, pos: [x, y], col }) => {
+    const st = isDone(u.id) ? "done" : unlocked(u.id) ? (u.id === cur ? "current" : "open") : "locked";
+    const title = u.kind === "side" ? levelTitle(u.id).replace(/^[^:]+:\s*/, "") : levelTitle(u.id), num = UNIT.filter((v) => v.kind === "lesson").indexOf(u) + 1;
     const center = u.kind === "boss" ? spriteSVG("bugbeast", 56).replace("<svg", '<svg x="-28" y="-30"')
       : u.kind === "build" ? spriteSVG("cabinet", 56).replace("<svg", '<svg x="-28" y="-30"')
       : u.kind === "side" ? spriteSVG("rock", 40).replace("<svg", '<svg x="-20" y="-22"')
-      : `<text text-anchor="middle" y="12" font-family="Fredoka" font-weight="700" font-size="36" fill="#fff" stroke="rgba(0,0,0,.35)" stroke-width="3" paint-order="stroke">${num}</text>`;
+      : `<text text-anchor="middle" y="12" font-family="Fredoka" font-weight="700" font-size="34" fill="#fff" stroke="rgba(0,0,0,.35)" stroke-width="3" paint-order="stroke">${num}</text>`;
     const sub = st === "done" ? (statusOf(u.id) === "skipped" ? t("skipped") : "★ " + t("done")) : st === "locked" ? "🔒 " + t("locked") : u.kind === "side" ? t("sideQuest") : u.kind === "boss" ? t("boss") : u.kind === "build" ? t("build") : `+${u.xp} ${t("xp")}`;
+    const small = u.kind === "side";
     return `<g class="node ${st}" transform="translate(${x} ${y})" tabindex="0" role="link" aria-label="${esc(title)}, ${esc(sub)}" data-id="${u.id}">
-      ${st === "current" ? `<circle class="ring" r="62" fill="none" stroke="var(--gold)" stroke-width="5"/>` : ""}
-      ${nodeShape(skin, st, NODE_COL[i])}${center}
-      ${st === "done" ? `<g transform="translate(34 -40)"><circle r="16" fill="var(--gold)"/><text text-anchor="middle" y="7" font-size="20" fill="#3a2a00">★</text></g>` : ""}
-      <text class="label" text-anchor="middle" y="${u.kind === "side" ? 74 : 80}">${esc(title)}</text>
-      <text class="sub" text-anchor="middle" y="${u.kind === "side" ? 94 : 100}">${esc(sub)}</text></g>`;
+      ${st === "current" ? `<circle class="ring" r="${small ? 52 : 60}" fill="none" stroke="var(--gold)" stroke-width="5"/>` : ""}
+      <g transform="scale(${small ? 0.8 : 0.92})">${nodeShape(skin, st, col)}${center}</g>
+      ${st === "done" ? `<g transform="translate(32 -38)"><circle r="15" fill="var(--gold)"/><text text-anchor="middle" y="7" font-size="19" fill="#3a2a00">★</text></g>` : ""}
+      <text class="label" text-anchor="middle" y="${small ? 66 : 74}">${esc(title)}</text>
+      <text class="sub" text-anchor="middle" y="${small ? 86 : 94}">${esc(sub)}</text></g>`;
   }).join("");
-  const [sx, sy] = POS.l5, [bx, by] = POS.side1;
-  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(t("worldMap"))}">
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(t("worldMap") + ": " + tx(WORLDS[w]))}">
     ${decor(skin, W, H)}
     <path d="${d}" fill="none" stroke="rgba(0,0,0,.3)" stroke-width="18" stroke-linecap="round"/>
     <path d="${d}" fill="none" stroke="var(--support)" stroke-opacity=".7" stroke-width="6" stroke-dasharray="2 16" stroke-linecap="round"/>
-    <path d="M${sx} ${sy} Q${sx + 60} ${(sy + by) / 2} ${bx} ${by}" fill="none" stroke="var(--gold)" stroke-opacity=".6" stroke-width="5" stroke-dasharray="2 14" stroke-linecap="round"/>
-    ${nodes}</svg>`;
+    ${branches}${nodes}</svg>`;
+}
+// World tabs above the map: done/total for each world.
+function worldTabs(sel) {
+  return `<div class="worlds" role="tablist" aria-label="${esc(t("worldMap"))}">${WORLDS.map((wd, i) => {
+    const ids = ROUTE.slice(i * 7, i * 7 + 7).map((u) => u.id).concat(i === WORLDS.length - 1 ? ["mygame"] : []);
+    const done = ids.filter((id) => isDone(id)).length, open = ids.some((id) => unlocked(id) || isDone(id));
+    return `<button type="button" role="tab" aria-selected="${i === sel}" data-world="${i}" class="${i === sel ? "on" : ""} ${open ? "" : "dim"}">
+      <b>${esc(tx(wd))}</b><span class="small">${open ? `★ ${done}/${ids.length}` : "🔒"}</span></button>`;
+  }).join("")}</div>`;
 }
 
 function treeSVG(m) {
-  const P = { variables: [150, 228], conditionals: [62, 160], loops: [238, 160], lists: [238, 88], functions: [100, 88], debugging: [168, 26] };
-  const E = [["variables", "conditionals"], ["variables", "loops"], ["loops", "lists"], ["conditionals", "functions"], ["lists", "functions"], ["functions", "debugging"], ["conditionals", "debugging"]];
+  const P = { variables: [175, 290], conditionals: [50, 220], strings: [175, 220], random: [300, 220], loops: [50, 150], lists: [175, 150], while: [300, 150], functions: [100, 80], dicts: [250, 80], debugging: [175, 16] };
+  const E = [["variables", "conditionals"], ["variables", "strings"], ["variables", "random"], ["conditionals", "loops"], ["loops", "lists"], ["loops", "while"], ["random", "while"],
+    ["loops", "functions"], ["lists", "functions"], ["lists", "dicts"], ["strings", "dicts"], ["functions", "debugging"], ["dicts", "debugging"]];
   const col = { beginning: "#55606b", developing: "var(--gold)", mastered: "var(--good)" };
-  return `<svg class="tree" viewBox="0 -22 300 284" role="img" aria-label="${esc(t("skillTree"))}">
+  return `<svg class="tree" viewBox="-20 -24 390 350" role="img" aria-label="${esc(t("skillTree"))}">
     ${E.map(([a, b]) => `<line x1="${P[a][0]}" y1="${P[a][1]}" x2="${P[b][0]}" y2="${P[b][1]}" stroke="${m[a] !== "beginning" && m[b] !== "beginning" ? "var(--support)" : "rgba(255,255,255,.18)"}" stroke-width="5"/>`).join("")}
     ${CONCEPTS.map((c) => `<g transform="translate(${P[c.id][0]} ${P[c.id][1]})"><circle r="17" fill="${col[m[c.id]]}" stroke="rgba(0,0,0,.35)" stroke-width="3"/>
       ${m[c.id] === "mastered" ? `<text y="6" text-anchor="middle" font-size="16" fill="#062b16">★</text>` : ""}
@@ -364,17 +380,24 @@ async function pageMap() {
         <a class="btn primary" href="#lesson-${cur}">${isDone(cur) ? t("continue") : S.progress[cur] ? t("continue") : t("start")}: ${esc(tx(L.title))}</a>
       </div>
       <h1 class="sr" style="font-size:28px">${t("worldMap")}</h1>
-      <div class="mapwrap">${mapSVG()}</div>
+      ${worldTabs(S.mapWorld ?? worldOf(cur))}
+      <div class="mapwrap" id="mapwrap">${mapSVG(S.mapWorld ?? worldOf(cur))}</div>
     </section>
     <aside class="side">
       <section class="panel"><h2>${t("skillTree")}</h2>${treeSVG(m)}</section>
       <section class="panel"><h2>${t("weekly")}</h2><ol class="board" id="board"><li class="muted">…</li></ol><p class="small muted" id="myrank"></p></section>
       ${S.notes.filter((n) => !n.seen).length ? `<section class="panel"><h2>${t("teacherNote")}</h2>${S.notes.filter((n) => !n.seen).slice(0, 3).map((n) => `<p class="note">${esc(n.body)}</p>`).join("")}<button class="btn small" id="seen">OK</button></section>` : ""}
     </aside></div>`;
-  $$(".node").forEach((n) => {
+  const wireNodes = () => $$(".node").forEach((n) => {
     const open = () => { if (n.classList.contains("locked")) return toast(t("locked")); go("lesson-" + n.dataset.id); };
     n.onclick = open; n.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } };
   });
+  wireNodes();
+  $$("[data-world]").forEach((b) => (b.onclick = () => {
+    S.mapWorld = +b.dataset.world;
+    $$("[data-world]").forEach((x) => { x.classList.toggle("on", x === b); x.setAttribute("aria-selected", x === b); });
+    $("#mapwrap").innerHTML = mapSVG(S.mapWorld); wireNodes();
+  }));
   $("#seen")?.addEventListener("click", async () => { await api("POST", "/api/notes/seen", {}); S.notes.forEach((n) => (n.seen = 1)); pageMap(); });
   const lb = await api("GET", "/api/leaderboard").catch(() => null);
   if (!lb || !$("#board")) return;
@@ -386,8 +409,8 @@ async function pageMap() {
 const gameType = () => GAME_TYPES[S.game?.template] || null;
 function levelData(id) {
   const meta = LEVELS[id], g = gameType();
-  if (id === "boss") {
-    const b = (g || GAME_TYPES.platformer).boss;
+  if (item(id)?.kind === "boss") {
+    const b = (g || GAME_TYPES.platformer).bosses[id];
     return { ...meta, inFile: false, check: b.check, fails: b.fails, hints: b.hints, starter: b.starter(langPick(S.lang)) };
   }
   const lv = g?.levels[id];
@@ -416,7 +439,7 @@ function pickGame(id, restarting = false) {
   $$("[data-type]").forEach((b) => (b.onclick = async () => {
     const template = b.dataset.type;
     // Build up to this level: earlier levels the student was skipped past get their worked answers.
-    S.game = { ...(S.game || {}), template, code: ensureLevel("", template, id === "boss" ? "l6" : id, S.lang) };
+    S.game = { ...(S.game || {}), template, code: ensureLevel("", template, id, S.lang) };
     await saveGameFile({ title: tx(GAME_TYPES[template].name) });
     pageLesson(id);
   }));
@@ -435,9 +458,10 @@ function resetBlock(file, template, id) {
 
 async function pageLesson(id) {
   const it = item(id);
+  S.mapWorld = undefined;
   if (!it || !LEVELS[id]) return go("map");
   if (!unlocked(id) && !S.progress[id]) { toast(t("locked")); return go("map"); }
-  if (id !== "boss" && !gameType()) return pickGame(id);
+  if (it.kind !== "boss" && !gameType()) return pickGame(id);
   header("map");
   const L = levelData(id), g = gameType() || GAME_TYPES.platformer;
   const row = S.progress[id] || { hints_used: 0, attempts: 0, status: "started" };
@@ -723,7 +747,8 @@ async function pageRemix() {
 
 // ---------- teacher dashboard ----------
 const T = { tab: "progress", data: null, classId: null, at: 0, poll: 0 };
-const ITEMS = UNIT.map((u, i) => ({ ...u, short: u.kind === "boss" ? "B" : u.kind === "side" ? "S" : u.kind === "build" ? "G" : String(UNIT.filter((v) => v.kind === "lesson").indexOf(u) + 1) }));
+const nthOf = (u) => UNIT.filter((v) => v.kind === u.kind).indexOf(u) + 1;
+const ITEMS = UNIT.map((u) => ({ ...u, short: u.kind === "boss" ? "B" + nthOf(u) : u.kind === "side" ? "S" + nthOf(u) : u.kind === "build" ? "G" : String(nthOf(u)) }));
 const isStuck = (p) => p && p.status === "started" && (p.attempts >= 4 || p.hints_used >= 3) && Date.now() - p.updated_at < 30 * 60e3;
 const WORDS = ["star", "comet", "rocket", "pixel", "coral", "wave", "island", "dragon", "robot", "planet", "laser", "orbit"];
 const genPw = () => WORDS[Math.floor(Math.random() * WORDS.length)] + (10 + Math.floor(Math.random() * 90));
@@ -1055,7 +1080,9 @@ async function studentDrawer(id, view = "game") {
   const titleOf = (lid) => (g?.levels[lid]?.title ? tx(g.levels[lid].title) : tx(LEVELS[lid].title));
   const m = mastery(d.progress);
   const prev = activeRunner;
-  const views = [["game", t("theirGame")], ["boss", t("boss")], ["remix", t("remixLab")]];
+  // The boss they're on (or last worked on) is the one to show.
+  const bossId = UNIT.filter((u) => u.kind === "boss").reverse().find((u) => d.progress[u.id])?.id || "boss1";
+  const views = [["game", t("theirGame")], ["boss", titleOf(bossId)], ["remix", t("remixLab")]];
   const { el } = openModal(`<div class="row">${avatarHTML(s.avatar, 48)}<div><h2 id="modal-title" style="margin:0">${esc(s.name)}</h2>
       <span class="small muted">${esc(s.username)} · ${esc(s.className)} · ${t("lastSeen")} ${ago(s.lastSeen)}</span></div><span class="spacer"></span><button class="btn ghost small" data-close>${t("close")}</button></div>
     <div class="row">
@@ -1088,9 +1115,9 @@ async function studentDrawer(id, view = "game") {
       <span class="spacer"></span><label class="row" style="font-weight:700">${t("catchUp")}<select id="skipto" style="width:auto">${UNIT.slice(1).map((u) => `<option value="${u.id}">${esc(titleOf(u.id))}</option>`).join("")}</select></label><button class="btn small" id="skip">${t("skip")}</button>
       <button class="btn ghost small" id="pw">${t("resetPw")}</button></div>`, { wide: true, onClose: () => { r.destroy(); activeRunner = prev; } });
 
-  const codeFor = (v) => v === "boss" ? (d.progress.boss?.code || (g || GAME_TYPES.platformer).boss.starter(langPick(S.lang)))
+  const codeFor = (v) => v === "boss" ? (d.progress[bossId]?.code || (g || GAME_TYPES.platformer).bosses[bossId].starter(langPick(S.lang)))
     : v === "remix" ? (d.remix?.code || "# " + t("noRemixYet")) : (d.game?.code || "# " + t("noGameYet"));
-  const savedAt = (v) => v === "boss" ? d.progress.boss?.updated_at : v === "remix" ? d.remix?.updated_at : d.game?.updated_at;
+  const savedAt = (v) => v === "boss" ? d.progress[bossId]?.updated_at : v === "remix" ? d.remix?.updated_at : d.game?.updated_at;
   const ed = makeEditor($("#tcode", el), codeFor(view), { readOnly: true });
   const r = new Runner($("#tframe", el)); activeRunner = r; wirePad(el, r);
   const con = $("#tcon", el);
@@ -1106,7 +1133,7 @@ async function studentDrawer(id, view = "game") {
   $$("[data-view]", el).forEach((b) => (b.onclick = () => { view = b.dataset.view; show(); }));
   $("#trun", el).onclick = async () => { con.textContent = ""; const x = await r.run(ed.get()); if (x.type === "error") con.textContent += `⚠ ${x.line ? "line " + x.line + ": " : ""}${x.message}\n`; };
   $("#trefresh", el).onclick = async () => { d = await api("GET", "/api/teacher/students/" + encodeURIComponent(id)); show(); toast("↻ " + t("refresh")); };
-  $("#sendnote", el).onclick = async () => { const body = $("#note", el).value.trim(); if (!body) return; await api("POST", "/api/teacher/notes", { studentId: id, lessonId: view === "boss" ? "boss" : curLevel(), body }); toast("✓ " + t("sendNote")); $("#note", el).value = ""; };
+  $("#sendnote", el).onclick = async () => { const body = $("#note", el).value.trim(); if (!body) return; await api("POST", "/api/teacher/notes", { studentId: id, lessonId: view === "boss" ? bossId : curLevel(), body }); toast("✓ " + t("sendNote")); $("#note", el).value = ""; };
   $$("[data-bonus]", el).forEach((b) => (b.onclick = async () => { await api("POST", `/api/teacher/students/${encodeURIComponent(id)}/bonus`, { amount: +b.dataset.bonus, reason: "teacher" }); toast(`+${b.dataset.bonus} ${t("xp")} → ${s.name}`); T.at = 0; }));
   $("#skip", el).onclick = async () => { const x = await api("POST", `/api/teacher/students/${encodeURIComponent(id)}/skip`, { lessonId: $("#skipto", el).value }); toast(`✓ ${t("skip")} (${x.skipped})`); T.at = 0; };
   $("#pw", el).onclick = () => resetPw(id);

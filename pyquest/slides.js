@@ -4,6 +4,8 @@
 // The last slide of each deck is a quick check question (no XP, just practice).
 // Code examples work in every game type, so they use general names (player, coins, score).
 
+import { MORE_SLIDES, MORE_CARDS, MORE_DETAILS, MORE_USES, MORE_IN_LEVEL, MORE_PICS } from "./slides_more.js";
+
 const T = (en, es) => ({ en, es });
 
 // Level slides. A slide with `concept` is where that concept is first taught in depth.
@@ -486,3 +488,11 @@ export const PICS = {
     <rect x="100" y="25" width="130" height="60" rx="12" fill="var(--panel2)" stroke="var(--support)" stroke-width="3"/><text x="165" y="60" text-anchor="middle" fill="var(--ink)" font-weight="800" font-size="14">make_enemy</text>
     <text x="242" y="60" fill="var(--good)" font-weight="800" font-size="15">→ 👾</text></svg>`,
 };
+
+// Levels 7–20, side quests, the newer bosses and the four newer concepts live in slides_more.js.
+Object.assign(SLIDES, MORE_SLIDES);
+Object.assign(CONCEPT_CARDS, MORE_CARDS);
+Object.assign(CONCEPT_DETAILS, MORE_DETAILS);
+Object.assign(USES, MORE_USES);
+Object.assign(IN_LEVEL, MORE_IN_LEVEL);
+Object.assign(PICS, MORE_PICS);

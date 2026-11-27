@@ -11,9 +11,20 @@
 // The boss is a separate broken game (not part of the student's file).
 
 const T = (en, es) => ({ en, es });
-export const MARKERS = { l1: "L1", l2: "L2", l3: "L3", l4: "L4", l5: "L5", side1: "SIDE", l6: "L6", mygame: "FINAL" };
+import { buildMore } from "./more_levels.js";
+
+// The order levels go into the student's file. Side quests (q…, side1) are optional; main levels never depend on them.
+export const IN_FILE = ["l1", "l2", "q1", "l3", "l4", "q2", "l5", "l6", "side1", "l7", "l8", "q4", "l9", "l10", "q5", "l11", "l12", "q6",
+  "l13", "l14", "q7", "l15", "l16", "q8", "l17", "l18", "q9", "l19", "l20", "q10", "mygame"];
+const CHAIN = IN_FILE.filter((id) => !/^(q\d+|side1)$/.test(id));          // the required path
+export const SIDE_AFTER = { q1: "l2", q2: "l4", side1: "l6", q4: "l8", q5: "l10", q6: "l12", q7: "l14", q8: "l16", q9: "l18", q10: "l20" };
+export const BOSS_AFTER = { boss1: "l4", boss: "l8", boss3: "l12", boss4: "l16", boss5: "l20" };
+// The marker comment that starts each level's block. side1 was "SIDE" before the unit grew, so both are recognised.
+const LABEL = { mygame: "FINAL", side1: "QUEST 3" };
+for (const id of IN_FILE) if (!LABEL[id]) LABEL[id] = id.startsWith("q") ? "QUEST " + id.slice(1) : id.toUpperCase();
+export const MARKERS = { ...LABEL, side1: "(?:SIDE|QUEST 3)" };
 export const markerRe = (id) => new RegExp("^# ===== " + MARKERS[id] + " ·", "m");
-const mark = (id, title) => `# ===== ${MARKERS[id]} · ${title} =====`;
+const mark = (id, title) => `# ===== ${LABEL[id]} · ${title} =====`;
 
 // ---------- shared pieces ----------
 const l1Check = (v) => `
@@ -56,7 +67,7 @@ GOAL = 10
 import re
 import pq as _pq
 code_only = re.sub(r"#.*", "", _source)
-if not re.search(r"game_over\\(\\s*[\\"'](?!Game over)", code_only):
+if not re.search(r"game_over\\(\\s*[\\"'](?!Game over|Time's up)", code_only):
     result = "win"
 else:
     for keys in (["right"], ["left"], ["up"], ["space"], ["right", "up"], []):
@@ -1528,11 +1539,15 @@ if score != s0 + 1:
 };
 
 export const GAME_TYPES = { platformer, explorer, shooter, hopper, breaker };
+// Add Levels 7–20, the new side quests and the new bosses to every game type.
+for (const [tid, g] of Object.entries(GAME_TYPES)) {
+  const more = buildMore(tid, mark);
+  Object.assign(g.levels, more.levels);
+  g.bosses = { boss1: more.bosses.boss1, boss: g.boss, boss3: more.bosses.boss3, boss4: more.bosses.boss4, boss5: more.bosses.boss5 };
+}
 export { T, mark, FINAL, scoreWin, bossTry, bossEnd, bossFailsCommon, bossHints, l1Check, l1Fails, l1Hints, titleFail, textsHasTitle };
 
 // ---------- building a student's file ----------
-const CHAIN = ["l1", "l2", "l3", "l4", "l5", "l6", "mygame"];          // the required path (side quest is optional)
-export const IN_FILE = ["l1", "l2", "l3", "l4", "l5", "side1", "l6", "mygame"];  // levels that live in the game file
 export const langPick = (lang) => (en, es) => (lang === "es" ? es : en);
 
 export function applySolve(file, start, solve) {
@@ -1558,9 +1573,10 @@ export function addLevel(file, typeId, levelId, lang, solved = false) {
 // Make sure every earlier level on the path is in the file (filling gaps with worked answers,
 // e.g. after a teacher skips a student ahead), then add this level's scaffold if it's missing.
 export function ensureLevel(file, typeId, levelId, lang) {
-  const path = levelId === "side1" ? CHAIN.slice(0, CHAIN.indexOf("l5") + 1) : CHAIN.slice(0, CHAIN.indexOf(levelId));
+  const upTo = SIDE_AFTER[levelId] || BOSS_AFTER[levelId];
+  const path = upTo ? CHAIN.slice(0, CHAIN.indexOf(upTo) + 1) : CHAIN.slice(0, CHAIN.indexOf(levelId));
   let out = file || "";
   for (const id of path) if (!markerRe(id).test(out)) out = addLevel(out, typeId, id, lang, true);
-  if (!markerRe(levelId).test(out)) out = addLevel(out, typeId, levelId, lang, false);
+  if (!BOSS_AFTER[levelId] && !markerRe(levelId).test(out)) out = addLevel(out, typeId, levelId, lang, false);
   return out;
 }

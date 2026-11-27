@@ -327,6 +327,9 @@ MSG = {
         "index": "You asked for a list item that isn't there. Lists start counting at 0.",
         "value": "That value doesn't work here: {0}",
         "timeout": "Your code ran too long. Is there a loop that never stops?",
+        "key": "This dictionary has no key {0}. Check the spelling and quotes, or add that key first.",
+        "randint": "random.randint needs the SMALLER number first, like random.randint(30, 370).",
+        "not_iter": "You can't loop over that. If it's a method like .items, add ( ) to run it: .items()",
         "global": "To change `{0}` inside a function, add `global {0}` as the first line inside that function.",
         "other": "{0}: {1}",
     },
@@ -355,6 +358,9 @@ MSG = {
         "index": "Pediste un elemento que no está en la lista. Las listas empiezan a contar en 0.",
         "value": "Ese valor no funciona aquí: {0}",
         "timeout": "Tu código tardó demasiado. ¿Hay un bucle que nunca termina?",
+        "key": "Este diccionario no tiene la clave {0}. Revisa la ortografía y las comillas, o agrega esa clave primero.",
+        "randint": "random.randint necesita el número MÁS PEQUEÑO primero, como random.randint(30, 370).",
+        "not_iter": "No puedes recorrer eso con un bucle. Si es un método como .items, agrégale ( ): .items()",
         "global": "Para cambiar `{0}` dentro de una función, agrega `global {0}` como primera línea de esa función.",
         "other": "{0}: {1}",
     },
@@ -425,17 +431,21 @@ def explain(e, ns):
             msg = m["extra_arg"]
         elif "not callable" in text_:
             msg = m["not_callable"]
+        elif "not iterable" in text_:
+            msg = m["not_iter"]
         else:
             msg = m["other"].format(kind, text_)
     elif isinstance(e, ZeroDivisionError):
         msg = m["zero"]
     elif isinstance(e, IndexError):
         msg = m["index"]
+    elif isinstance(e, KeyError):
+        msg = m["key"].format(text_)
     elif isinstance(e, ValueError):
-        msg = m["value"].format(text_)
+        msg = m["randint"] if "empty range" in text_ else m["value"].format(text_)
     else:
         msg = m["other"].format(kind, text_)
     known = {"NameError", "SyntaxError", "IndentationError", "TypeError", "AttributeError",
-             "ValueError", "ZeroDivisionError", "IndexError", "Timeout"}
+             "ValueError", "ZeroDivisionError", "IndexError", "KeyError", "Timeout"}
     return {"kind": kind if kind in known else "Other", "message": msg, "line": _line_of(e)}
 
