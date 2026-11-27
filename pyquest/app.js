@@ -688,11 +688,12 @@ async function pageShop() {
 
 async function pageArcade() {
   header("arcade");
-  main.innerHTML = `<div class="page"><h1>${t("classArcade")}</h1><div class="grid" id="games" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr))"><p class="muted">…</p></div></div>`;
+  main.innerHTML = `<div class="page"><h1>${t("classArcade")}</h1><p class="muted" style="margin-top:-6px">${t("arcadeIntro")}</p><div class="grid" id="games" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr))"><p class="muted">…</p></div></div>`;
   const { games } = await api("GET", "/api/gallery");
   if (S.me.role === "student") api("GET", "/api/remix").then(({ remix }) => { if (remix && $("#games")) $("#games").insertAdjacentHTML("beforebegin", `<p><a class="btn gold" href="#remix">${t("openRemix")}: ${esc(remix.from_title)}</a></p>`); }).catch(() => {});
-  $("#games").innerHTML = games.length ? games.map((g) => `<article class="cab"><div class="scr">${spriteSVG("cabinet", 64)}</div>
-      <h3 style="margin:0">${esc(g.title)}</h3><div class="row small">${avatarHTML(g.avatar, 28)}<span>${esc(t("by", g.author))}</span><span class="spacer"></span><span class="muted">${esc(t("plays", g.plays))}</span></div>
+  $("#games").innerHTML = games.length ? games.map((g) => `<article class="cab"><div class="scr">${spriteSVG(GAME_TYPES[g.template]?.sprite || "cabinet", 64)}</div>
+      <h3 style="margin:0">${esc(g.title || t("untitled"))}</h3>
+      <span class="chip ${g.published ? "pub" : "wip"}">${g.published ? "★ " + t("published") : "🛠 " + (g.finished ? t("finished") : g.levelsDone >= g.levels ? t("buildingFinal") : t("buildingLevel", g.levelsDone + 1))}</span><div class="row small">${avatarHTML(g.avatar, 28)}<span>${esc(t("by", g.author))}</span><span class="spacer"></span><span class="muted">${esc(t("plays", g.plays))}</span></div>
       <button class="btn primary" data-play="${esc(g.id)}" data-mine="${g.mine ? 1 : 0}">▶ ${t("play")}</button></article>`).join("") : `<p class="muted">${t("noGames")}</p>`;
   $$("[data-play]").forEach((b) => (b.onclick = () => playGame(b.dataset.play, b.dataset.mine === "1")));
 }
@@ -700,11 +701,16 @@ async function pageArcade() {
 async function playGame(gameId, mine = false) {
   const g = await api("GET", "/api/gallery/" + encodeURIComponent(gameId));
   const prev = activeRunner;
-  const { el } = openModal(`<div class="row"><h2 id="modal-title" style="margin:0">${esc(g.title)}</h2><span class="muted">${esc(t("by", g.author))}</span><span class="spacer"></span>${S.me.role === "student" && !mine ? `<button class="btn gold small" id="remixbtn">${t("remix")}</button>` : ""}<button class="btn ghost small" data-close>${t("close")}</button></div>
+  const { el } = openModal(`<div class="row"><h2 id="modal-title" style="margin:0">${esc(g.title)}</h2><span class="muted">${esc(t("by", g.author))}</span><span class="spacer"></span>${S.me.role === "student" && !mine && g.published ? `<button class="btn gold small" id="remixbtn">${t("remix")}</button>` : ""}<button class="btn ghost small" data-close>${t("close")}</button></div>
     <div id="gf" style="max-width:480px;width:100%;margin:0 auto"></div>${padHTML()}<pre class="console" id="gcon" style="height:70px"></pre>`, { onClose: () => { r.destroy(); activeRunner = prev; } });
   const r = new Runner($("#gf", el)); activeRunner = r; wirePad(el, r);
   r.on("print", (m) => { $("#gcon", el).textContent += m.lines.join("\n") + "\n"; }).on("error", (m) => { $("#gcon", el).textContent += "⚠ " + m.message + "\n"; });
-  r.run(g.code);
+  // Mid-edit games may not run yet: fall back to the author's last finished version.
+  const res = await r.run(g.code);
+  if (res?.type === "error" && !g.published) {
+    $("#gcon", el).textContent = "🛠 " + t("wipFallback") + "\n";
+    r.run(finishedOnly(g.code, (id) => (g.done || []).includes(id)));
+  }
   $("#remixbtn", el)?.addEventListener("click", () => {
     const { el: m, close } = openModal(`<h2 id="modal-title">${t("remix")}</h2><p>${esc(t("remixConfirm", g.title, g.author))}</p>
       <div class="row"><button class="btn primary" id="yes">${t("remix")}</button><button class="btn ghost" data-close>${t("close")}</button></div>`, { onClose: () => {} });
@@ -714,11 +720,11 @@ async function playGame(gameId, mine = false) {
 
 // ---------- Play my game: the student's current game file, playable any time ----------
 // Keeps only the blocks of levels the student has finished (or skipped): the "last finished version".
-function finishedOnly(code) {
+function finishedOnly(code, done = isDone) {
   const marks = IN_FILE.map((id) => ({ id, m: markerRe(id).exec(code) })).filter((x) => x.m).sort((a, b) => a.m.index - b.m.index);
   if (!marks.length) return code;
   let out = code.slice(0, marks[0].m.index);
-  marks.forEach((x, i) => { if (isDone(x.id)) out += code.slice(x.m.index, i + 1 < marks.length ? marks[i + 1].m.index : code.length); });
+  marks.forEach((x, i) => { if (done(x.id)) out += code.slice(x.m.index, i + 1 < marks.length ? marks[i + 1].m.index : code.length); });
   return out;
 }
 async function pagePlay() {

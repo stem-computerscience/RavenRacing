@@ -281,3 +281,6 @@ h2 .chip.concept { font-size: 15px; vertical-align: middle; border: 2px solid va
 .playframe { width: 100%; max-width: 560px; margin: 0 auto; }
 @media (max-width: 1400px) { .xpbar { width: 100px; } .nav a { padding: 8px 10px; } .top { gap: 10px; } .hud { gap: 8px; } }
 @media (max-width: 1200px) { .brand span { display: none; } }
+.cab .chip { white-space: normal; max-width: 100%; }
+.cab .chip.pub { background: color-mix(in srgb, var(--gold) 25%, var(--panel)); justify-self: start; }
+.cab .chip.wip { background: color-mix(in srgb, var(--support) 22%, var(--panel)); justify-self: start; }
