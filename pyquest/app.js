@@ -682,21 +682,21 @@ function classLabels(classes) {
   }));
 }
 const allMode = () => T.classId === "all";
+const nStu = (n) => (n === 1 ? t("oneStudent") : t("nStudents", n));
 async function pageTeacher() {
   header("teacher");
   if (!T.data) await loadTeacher();
   const D = T.data, L = classLabels(D.classes);
   const total = D.classes.reduce((n, c) => n + c.students, 0);
-  const cur = D.classes.find((c) => c.id === D.classId);
   main.innerHTML = `<div class="page">
     <div class="row"><h1 style="margin:0">${t("dashboard")}</h1><span class="spacer"></span>
       <select id="cls" style="width:auto" aria-label="${t("className")}">
-        ${D.classes.length > 1 ? `<option value="all" ${D.classId === "all" ? "selected" : ""}>${esc(t("allClasses"))} (${t("nStudents", total)})</option>` : ""}
-        ${D.classes.map((c) => `<option value="${esc(c.id)}" ${c.id === D.classId ? "selected" : ""}>${esc(L[c.id])} (${t("nStudents", c.students)})</option>`).join("")}</select>
+        ${D.classes.length > 1 ? `<option value="all" ${D.classId === "all" ? "selected" : ""}>${esc(t("allClasses"))} (${nStu(total)})</option>` : ""}
+        ${D.classes.map((c) => `<option value="${esc(c.id)}" ${c.id === D.classId ? "selected" : ""}>${esc(L[c.id])} (${nStu(c.students)})</option>`).join("")}</select>
       <button class="btn small" id="addcls">+ ${t("addClass")}</button>
-      ${cur && cur.students === 0 && D.classes.length > 1 ? `<button class="btn ghost small" id="delcls">${t("removeClass")}</button>` : ""}
+
       <span class="chip"><span class="dot"></span>${t("live")} · <span id="ago">${t("updated", 0)}</span></span></div>
-    <div class="tabs" role="tablist">${["progress", "mastery", "errors", "students", "controls", "leaderboard"].map((k) => `<button role="tab" data-tab="${k}" aria-selected="${T.tab === k}">${t(k)}</button>`).join("")}</div>
+    <div class="tabs" role="tablist">${["progress", "mastery", "errors", "students", "classes", "controls", "leaderboard"].map((k) => `<button role="tab" data-tab="${k}" aria-selected="${T.tab === k}">${t(k)}</button>`).join("")}</div>
     <section id="tab"></section></div>`;
   $$("[data-tab]").forEach((b) => (b.onclick = () => { T.tab = b.dataset.tab; pageTeacher(); }));
   $("#cls").onchange = async (e) => { T.classId = e.target.value; await loadTeacher(); pageTeacher(); };
@@ -711,12 +711,7 @@ async function pageTeacher() {
       catch (e) { $("#cnerr", el).textContent = e.message === "class_name_taken" ? t("classNameTaken", name) : t("oops"); }
     };
   };
-  $("#delcls")?.addEventListener("click", () => {
-    const { el, close } = openModal(`<h2 id="modal-title">${t("removeClass")}</h2><p>${esc(t("removeClassHelp", L[cur.id]))}</p>
-      <div class="row"><button class="btn primary" id="y">${t("removeClass")}</button><button class="btn ghost" data-close autofocus>${t("close")}</button></div>`);
-    $("#y", el).onclick = async () => { try { await api("DELETE", "/api/teacher/classes/" + encodeURIComponent(cur.id)); T.classId = "all"; close(); await loadTeacher(); pageTeacher(); } catch (e) { toast(e.message.replace(/_/g, " ")); } };
-  });
-  ({ progress: tabProgress, mastery: tabMastery, errors: tabErrors, students: tabStudents, controls: tabControls, leaderboard: tabBoard })[T.tab]($("#tab"), D);
+  ({ progress: tabProgress, mastery: tabMastery, errors: tabErrors, students: tabStudents, classes: tabClasses, controls: tabControls, leaderboard: tabBoard })[T.tab]($("#tab"), D);
   clearInterval(T.poll);
   T.poll = setInterval(async () => {
     if (!location.hash.startsWith("#teacher")) return clearInterval(T.poll);
@@ -838,6 +833,63 @@ function resetPw(id) {
   const pw = genPw();
   const { el, close } = openModal(`<h2 id="modal-title">${t("resetPw")}</h2><label>${t("newPw")}<input type="text" id="np" value="${pw}" minlength="4" maxlength="64"></label><div class="row"><button class="btn primary" id="ok">${t("save")}</button><button class="btn ghost" data-close>${t("close")}</button></div>`);
   $("#ok", el).onclick = async () => { try { await api("POST", `/api/teacher/students/${encodeURIComponent(id)}/password`, { password: $("#np", el).value }); toast("✓ " + $("#np", el).value); close(); } catch (e) { toast(e.message); } };
+}
+
+// ---------- Classes: every class with its roster; view, rename, delete ----------
+async function tabClasses(el) {
+  el.innerHTML = `<p class="muted" style="margin-top:12px">…</p>`;
+  const all = await api("GET", "/api/teacher/overview?class=all");
+  const L = classLabels(all.classes), by = {};
+  for (const st of all.students) (by[st.class_id] ||= []).push(st);
+  const only = all.classes.length === 1;
+  el.innerHTML = `<div class="row" style="margin-top:12px"><h2 style="margin:0">${t("classes")} (${all.classes.length})</h2><span class="spacer"></span><button class="btn primary small" id="addcls2">+ ${t("addClass")}</button></div>
+    ${all.classes.map((c) => { const kids = by[c.id] || []; return `<section class="panel" style="margin-top:12px">
+      <div class="row"><h3 style="margin:0">${esc(L[c.id])}</h3><span class="chip">${nStu(c.students)}</span><span class="spacer"></span>
+        <button class="btn small" data-view="${esc(c.id)}">${t("viewClass")}</button>
+        <button class="btn small" data-rename="${esc(c.id)}">${t("rename")}</button>
+        ${only ? "" : `<button class="btn ghost small" data-delclass="${esc(c.id)}">${t("deleteClass")}</button>`}</div>
+      ${kids.length ? `<div class="scroll" style="margin-top:8px"><table class="stack"><thead><tr><th>${t("student")}</th><th>${t("username")}</th><th>${t("gameCol")}</th><th class="num">${t("level")}</th><th class="num">${t("xp")}</th></tr></thead><tbody>
+        ${kids.map((k) => `<tr><td data-l="${t("student")}">${whoHTML(k)}</td><td data-l="${t("username")}"><code>${esc(k.username)}</code></td><td data-l="${t("gameCol")}">${GAME_TYPES[k.game_type] ? esc(tx(GAME_TYPES[k.game_type].name)) : "–"}</td><td class="num" data-l="${t("level")}">${levelFor(k.xp)}</td><td class="num" data-l="${t("xp")}">${k.xp}</td></tr>`).join("")}
+      </tbody></table></div>` : `<p class="muted" style="margin:8px 0 0">${t("noStudentsInClass")}</p>`}</section>`; }).join("")}
+    ${only ? `<p class="small muted">${t("lastClassNote")}</p>` : ""}`;
+  const refresh = async () => { await loadTeacher(); await pageTeacher(); };
+  $("#addcls2", el).onclick = () => $("#addcls").click();
+  $$("[data-view]", el).forEach((b) => (b.onclick = async () => { T.classId = b.dataset.view; T.tab = "progress"; await refresh(); }));
+  $$("[data-rename]", el).forEach((b) => (b.onclick = () => {
+    const c = all.classes.find((x) => x.id === b.dataset.rename);
+    const { el: m, close } = openModal(`<h2 id="modal-title">${t("rename")}</h2><label>${t("className")}<input type="text" id="rn" maxlength="40" value="${esc(c.name)}" autofocus></label>
+      <span class="small" id="rnerr" role="alert" style="color:var(--bad)"></span>
+      <div class="row"><button class="btn primary" id="ok">${t("save")}</button><button class="btn ghost" data-close>${t("close")}</button></div>`);
+    $("#ok", m).onclick = async () => {
+      const name = $("#rn", m).value.replace(/\s+/g, " ").trim();
+      try { await api("PUT", "/api/teacher/classes/" + encodeURIComponent(c.id), { name }); close(); await refresh(); }
+      catch (e) { $("#rnerr", m).textContent = e.message === "class_name_taken" ? t("classNameTaken", name) : e.message === "class_name_empty" ? t("classNameEmpty") : t("oops"); }
+    };
+  }));
+  $$("[data-delclass]", el).forEach((b) => (b.onclick = () => {
+    const c = all.classes.find((x) => x.id === b.dataset.delclass), others = all.classes.filter((x) => x.id !== c.id);
+    const { el: m, close } = openModal(`<h2 id="modal-title">${t("deleteClass")}: ${esc(L[c.id])}</h2>
+      ${c.students ? `<p>${esc(t("deleteClassHas", c.students))}</p>
+        <label class="toggle" style="justify-content:flex-start"><input type="radio" name="how" value="move" checked> ${t("moveStudentsTo")}
+          <select id="dest" style="width:auto;margin-left:8px">${others.map((o) => `<option value="${esc(o.id)}">${esc(L[o.id])}</option>`).join("")}</select></label>
+        <label class="toggle" style="justify-content:flex-start"><input type="radio" name="how" value="delete"> ${t("deleteStudentsToo")}</label>
+        <label id="confirmbox" hidden>${esc(t("typeNameToConfirm", c.name))}<input type="text" id="confirmname" autocomplete="off"></label>`
+      : `<p>${t("deleteEmptyClass")}</p>`}
+      <span class="small" id="delerr" role="alert" style="color:var(--bad)"></span>
+      <div class="row"><button class="btn primary" id="ok">${t("deleteClass")}</button><button class="btn ghost" data-close autofocus>${t("close")}</button></div>`);
+    $$("input[name=how]", m).forEach((r) => (r.onchange = () => { $("#confirmbox", m).hidden = r.value !== "delete" || !r.checked; }));
+    $("#ok", m).onclick = async () => {
+      const how = $("input[name=how]:checked", m)?.value;
+      const body = !c.students ? {} : how === "move" ? { moveTo: $("#dest", m).value } : { deleteStudents: true, confirmName: $("#confirmname", m).value };
+      if (how === "delete" && body.confirmName.trim().toLowerCase() !== c.name.trim().toLowerCase()) { $("#delerr", m).textContent = t("typeNameToConfirm", c.name); return; }
+      try {
+        const r = await api("POST", `/api/teacher/classes/${encodeURIComponent(c.id)}/delete`, body);
+        close(); if (T.classId === c.id) T.classId = "all";
+        toast(r.moved ? t("classMoved", r.moved) : r.deleted ? t("classDeletedWith", r.deleted) : t("classDeleted"));
+        await refresh();
+      } catch (e) { $("#delerr", m).textContent = e.message.replace(/_/g, " "); }
+    };
+  }));
 }
 
 function tabControls(el, D) {
