@@ -1,6 +1,6 @@
 import { STR, fmt } from "./i18n.js";
 import { LEVELS, SNIPPETS } from "./lessons.js";
-import { GAME_TYPES, ensureLevel, markerRe, langPick } from "./games.js";
+import { GAME_TYPES, ensureLevel, markerRe, langPick, IN_FILE } from "./games.js";
 import { UNIT, CONCEPTS, BADGES, SHOP, HINT_COST, WORLDS, isUnlocked, mastery, levelFor } from "./curriculum.js";
 import { spriteSVG, GUIDES } from "./sprites.js";
 import { SLIDES, PICS, USES, CONCEPT_CARDS, deckFor, conceptSlide, detailSlide } from "./slides.js";
@@ -230,7 +230,7 @@ function header(active) {
   const u = S.me, inLevel = u.xp % 100;
   const links = u.role === "teacher"
     ? [["teacher", t("dashboard")], ["arcade", t("arcade")]]
-    : [["map", t("map")], ["arcade", t("arcade")], ["shop", t("shop") + " · " + t("me")]];
+    : [["map", t("map")], ["play", "▶ " + t("myGame")], ["arcade", t("arcade")], ["shop", t("shop") + " · " + t("me")]];
   h.innerHTML = `
     <a class="brand" href="#${u.role === "teacher" ? "teacher" : "map"}">${spriteSVG(GUIDES[u.skin] || "robot", 30)}<span>${t("appName")}</span></a>
     <nav class="nav" aria-label="Main">${links.map(([k, l]) => `<a href="#${k}" ${active === k ? 'aria-current="page"' : ""}>${esc(l)}</a>`).join("")}</nav>
@@ -378,6 +378,7 @@ async function pageMap() {
         <div class="guide" style="flex:1 1 280px">${spriteSVG(GUIDES[S.me.skin], 56, obj("guides")[S.me.skin])}
           <div class="bubble"><b>${esc(obj("guides")[S.me.skin])}:</b> ${esc(tx(L.story)).split(". ")[0]}.</div></div>
         <a class="btn primary" href="#lesson-${cur}">${isDone(cur) ? t("continue") : S.progress[cur] ? t("continue") : t("start")}: ${esc(tx(L.title))}</a>
+        ${S.game?.code ? `<a class="btn go" href="#play">▶ ${t("playMyGame")}</a>` : ""}
       </div>
       <h1 class="sr" style="font-size:28px">${t("worldMap")}</h1>
       ${worldTabs(S.mapWorld ?? worldOf(cur))}
@@ -710,6 +711,59 @@ async function playGame(gameId, mine = false) {
     $("#yes", m).onclick = async () => { await api("POST", "/api/remix", { gameId }); close(); go("remix"); };
   });
 }
+
+// ---------- Play my game: the student's current game file, playable any time ----------
+// Keeps only the blocks of levels the student has finished (or skipped): the "last finished version".
+function finishedOnly(code) {
+  const marks = IN_FILE.map((id) => ({ id, m: markerRe(id).exec(code) })).filter((x) => x.m).sort((a, b) => a.m.index - b.m.index);
+  if (!marks.length) return code;
+  let out = code.slice(0, marks[0].m.index);
+  marks.forEach((x, i) => { if (isDone(x.id)) out += code.slice(x.m.index, i + 1 < marks.length ? marks[i + 1].m.index : code.length); });
+  return out;
+}
+async function pagePlay() {
+  header("play");
+  await loadMe().catch(() => {});           // always play the newest saved version
+  const g = S.game;
+  if (!g?.code) {
+    main.innerHTML = `<div class="panel" style="max-width:640px;margin:40px auto;text-align:center"><h1>▶ ${t("myGame")}</h1><p>${t("noGameYet")}</p>
+      <a class="btn primary" href="#lesson-l1">${t("start")}: ${esc(levelTitle("l1"))}</a></div>`;
+    return;
+  }
+  const gt = gameType(), cur = currentId();
+  main.innerHTML = `<div class="playpage">
+    <div class="row"><h1 style="margin:0">${esc(g.title || TITLEof(g.code) || t("myGame"))}</h1>${gt ? `<span class="chip">${spriteSVG(gt.sprite, 20)} ${esc(tx(gt.name))}</span>` : ""}
+      <span class="spacer"></span><a class="btn ghost small" href="#lesson-${cur}">✏️ ${t("keepBuilding")}: ${esc(levelTitle(cur))}</a></div>
+    <p class="muted" style="margin:4px 0 12px">${t("playIntro")}</p>
+    <div id="playnote" aria-live="polite"></div>
+    <div id="frame" class="playframe"></div>${padHTML()}
+    <div class="row"><button class="btn go" id="restart">↺ ${t("restart")}</button><button class="btn" id="stop">■ ${t("stop")}</button>
+      <button class="btn ghost" id="lastgood" hidden>▶ ${t("playFinished")}</button></div>
+    <pre class="console" id="console" aria-live="polite" style="height:80px"></pre></div>`;
+  activeRunner?.destroy();
+  const runner = activeRunner = new Runner($("#frame"));
+  wirePad(main, runner);
+  const con = $("#console");
+  let version = "current";
+  const start = async (which) => {
+    version = which; con.textContent = ""; $("#playnote").innerHTML = "";
+    const r = await runner.run(which === "current" ? g.code : finishedOnly(g.code));
+    if (r?.type === "error") showErr(r);
+    $("#frame iframe, #frame")?.focus?.();
+  };
+  const showErr = (m) => {
+    if (version === "current") {
+      $("#playnote").innerHTML = `<div class="result bad">${t("playBroken")} ${m.line ? `<span class="chip">${t("errorOnLine", m.line)}</span>` : ""}<br>${rich(m.message)}</div>`;
+      $("#lastgood").hidden = false;
+    } else $("#playnote").innerHTML = `<div class="result bad">${t("oops")} ${rich(m.message)}</div>`;
+  };
+  runner.on("print", (m) => { con.textContent += m.lines.join("\n") + "\n"; con.scrollTop = con.scrollHeight; }).on("error", showErr);
+  $("#restart").onclick = () => start(version);
+  $("#stop").onclick = () => runner.stop();
+  $("#lastgood").onclick = () => start("finished");
+  start("current");
+}
+const TITLEof = (code) => (/^TITLE\s*=\s*["'](.+?)["']/m.exec(code) || [])[1];
 
 // ---------- Remix Lab: tinker with a copy of a classmate's game; your own game file is never touched ----------
 async function pageRemix() {
@@ -1148,7 +1202,7 @@ async function loadMe() {
 }
 async function render() {
   const h = location.hash.slice(1) || "";
-  if (activeRunner && !h.startsWith("lesson-") && h !== "remix") { activeRunner.destroy(); activeRunner = null; }
+  if (activeRunner && !h.startsWith("lesson-") && h !== "remix" && h !== "play") { activeRunner.destroy(); activeRunner = null; }
   if (speech) speechSynthesis.cancel();
   $("#modal").hidden = true;
   if (!S.me && h !== "setup") {
@@ -1164,6 +1218,7 @@ async function render() {
   if (h.startsWith("lesson-")) return pageLesson(h.slice(7));
   if (h === "shop") return pageShop();
   if (h === "remix") return pageRemix();
+  if (h === "play") return pagePlay();
   if (h === "arcade") return pageArcade();
   return pageMap();
 }

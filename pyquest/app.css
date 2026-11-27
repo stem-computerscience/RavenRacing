@@ -274,3 +274,10 @@ h2 .chip.concept { font-size: 15px; vertical-align: middle; border: 2px solid va
 .slides .bad-code pre.code { box-shadow: inset 4px 0 0 var(--bad); } .slides .good-code pre.code { box-shadow: inset 4px 0 0 var(--good); }
 .slides .words { margin: 0; color: var(--muted); }
 @media (max-width: 760px) { .slides .details { grid-template-columns: 1fr; } }
+
+/* Play my game */
+.playpage { max-width: 620px; margin: 0 auto; display: grid; gap: 10px; }
+.playpage h1 { font-size: 30px; }
+.playframe { width: 100%; max-width: 560px; margin: 0 auto; }
+@media (max-width: 1400px) { .xpbar { width: 100px; } .nav a { padding: 8px 10px; } .top { gap: 10px; } .hud { gap: 8px; } }
+@media (max-width: 1200px) { .brand span { display: none; } }
