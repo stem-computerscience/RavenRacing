@@ -103,7 +103,8 @@ function showSlides(id, { onDone } = {}) {
     const s = deck[i], last = i === deck.length - 1;
     const code = s.code ? (typeof s.code === "string" ? s.code : tx(s.code)) : "";
     $("#slide", el).innerHTML = `
-      <div class="row"><span class="chip">📖 ${esc(tx(L.title))}</span><span class="spacer"></span><span class="small muted">${t("slideOf", i + 1, deck.length)}</span></div>
+      <div class="row"><span class="chip">📖 ${esc(tx(L.title))}</span><span class="spacer"></span><span class="small muted">${t("slideOf", i + 1, deck.length)}</span>
+        <button type="button" class="btn ghost small" data-close>✕ ${t("close")}</button></div>
       <div class="dots" aria-hidden="true">${deck.map((_, j) => `<i class="${j === i ? "on" : j < i ? "past" : ""}"></i>`).join("")}</div>
       <h2 id="modal-title">${esc(tx(s.title))}</h2>
       ${s.quiz ? `<p class="lead">${esc(tx(s.q))}</p>
@@ -116,13 +117,13 @@ function showSlides(id, { onDone } = {}) {
         <button class="btn ghost" id="sprev" ${i === 0 ? "disabled" : ""}>← ${t("back")}</button>
         ${speech ? `<button class="btn ghost small" id="sread">🔊 ${t("readAloud")}</button>` : ""}
         <span class="spacer"></span>
-        ${last ? `<button class="btn go" data-close autofocus>${t("startCoding")} →</button>` : `<button class="btn primary" id="snext" autofocus>${t("next")} →</button>`}
+        ${last ? `<button class="btn go" data-close id="sdone" autofocus>${t("startCoding")} →</button>` : `<button class="btn primary" id="snext" autofocus>${t("next")} →</button>`}
       </div>`;
     $("#sprev", el).onclick = () => move(-1);
     $("#snext", el)?.addEventListener("click", () => move(1));
     $$(".quiz button", el).forEach((b) => (b.onclick = () => { picked = +b.dataset.j; draw(); }));
     $("#sread", el)?.addEventListener("click", (e) => speak(s.quiz ? tx(s.q) + ". " + s.options.map((o) => tx(o)).join(". ") : tx(s.title) + ". " + tx(s.body), e.currentTarget));
-    ($("#snext", el) || $("[data-close]", el))?.focus();
+    ($("#snext", el) || $("#sdone", el))?.focus();
   };
   draw();
   return close;

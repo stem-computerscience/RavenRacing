@@ -237,7 +237,7 @@ export const PICS = {
   loop: (lang) => {
     const s = lang === "es" ? ["Revisar teclas", "Mover cosas", "Revisar choques", "Dibujar"] : ["Check keys", "Move things", "Check hits", "Draw"];
     const pos = [[150, 30], [260, 110], [150, 190], [40, 110]];
-    return `<svg ${W} viewBox="0 0 300 220" aria-label="${lang === "es" ? "El ciclo del juego: " : "The game loop: "}${s.join(", ")}">
+    return `<svg ${W} viewBox="-20 0 340 220" aria-label="${lang === "es" ? "El ciclo del juego: " : "The game loop: "}${s.join(", ")}">
       <circle cx="150" cy="110" r="78" fill="none" stroke="var(--support)" stroke-width="3" stroke-dasharray="8 6"/>
       <text x="150" y="106" text-anchor="middle" font-weight="800" fill="var(--gold)" font-size="15">60×</text><text x="150" y="124" text-anchor="middle" fill="var(--muted)" font-size="12">${lang === "es" ? "por segundo" : "per second"}</text>
       ${s.map((w, i) => `<g><rect x="${pos[i][0] - 52}" y="${pos[i][1] - 15}" width="104" height="30" rx="8" fill="var(--panel2)" stroke="var(--line)"/><text x="${pos[i][0]}" y="${pos[i][1] + 5}" text-anchor="middle" font-size="13" font-weight="700" fill="var(--ink)">${i + 1}. ${w}</text></g>`).join("")}</svg>`;
