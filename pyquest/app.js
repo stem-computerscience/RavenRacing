@@ -96,7 +96,7 @@ class Runner {
       if (e.source !== this.frame.contentWindow || e.data?.src !== "pq-runner") return;
       const m = e.data;
       if (m.type === "ready") { this.ready = true; this.queue.splice(0).forEach((q) => this.post(q)); }
-      if (m.id && this.pending.has(m.id) && (m.type === "checked" || m.type === "error" || m.type === "started")) {
+      if (m.id && this.pending.has(m.id) && (m.type === "checked" || m.type === "error" || m.type === "started" || m.type === "snap")) {
         this.pending.get(m.id)(m); this.pending.delete(m.id);
       }
       this.handlers[m.type]?.forEach((f) => f(m));
@@ -108,6 +108,7 @@ class Runner {
   send(m) { this.ready ? this.post(m) : this.queue.push(m); }
   request(m) { const id = Math.random().toString(36).slice(2); return new Promise((res) => { this.pending.set(id, res); this.send({ ...m, id }); }); }
   run(code) { return this.request({ type: "run", code }); }
+  snapshot(code) { return this.request({ type: "snapshot", code }); }
   check(code, check) { return this.request({ type: "check", code, check }); }
   stop() { this.send({ type: "stop" }); }
   key(key, down) { this.send({ type: "key", key, down }); }
@@ -696,7 +697,7 @@ async function pageTeacher() {
       <button class="btn small" id="addcls">+ ${t("addClass")}</button>
 
       <span class="chip"><span class="dot"></span>${t("live")} · <span id="ago">${t("updated", 0)}</span></span></div>
-    <div class="tabs" role="tablist">${["progress", "mastery", "errors", "students", "classes", "controls", "leaderboard"].map((k) => `<button role="tab" data-tab="${k}" aria-selected="${T.tab === k}">${t(k)}</button>`).join("")}</div>
+    <div class="tabs" role="tablist">${["progress", "allwork", "mastery", "errors", "students", "classes", "controls", "leaderboard"].map((k) => `<button role="tab" data-tab="${k}" aria-selected="${T.tab === k}">${t(k)}</button>`).join("")}</div>
     <section id="tab"></section></div>`;
   $$("[data-tab]").forEach((b) => (b.onclick = () => { T.tab = b.dataset.tab; pageTeacher(); }));
   $("#cls").onchange = async (e) => { T.classId = e.target.value; T.showPw = false; T.pw = null; await loadTeacher(); pageTeacher(); };
@@ -711,12 +712,12 @@ async function pageTeacher() {
       catch (e) { $("#cnerr", el).textContent = e.message === "class_name_taken" ? t("classNameTaken", name) : t("oops"); }
     };
   };
-  ({ progress: tabProgress, mastery: tabMastery, errors: tabErrors, students: tabStudents, classes: tabClasses, controls: tabControls, leaderboard: tabBoard })[T.tab]($("#tab"), D);
+  ({ progress: tabProgress, allwork: tabAllWork, mastery: tabMastery, errors: tabErrors, students: tabStudents, classes: tabClasses, controls: tabControls, leaderboard: tabBoard })[T.tab]($("#tab"), D);
   clearInterval(T.poll);
   T.poll = setInterval(async () => {
     if (!location.hash.startsWith("#teacher")) return clearInterval(T.poll);
     const ago = $("#ago"); if (ago) ago.textContent = t("updated", Math.round((Date.now() - T.at) / 1000));
-    if (document.visibilityState === "visible" && Date.now() - T.at > 20000 && $("#modal").hidden && !typing(document.activeElement)) { await loadTeacher().catch(() => {}); pageTeacher(); }
+    if (document.visibilityState === "visible" && Date.now() - T.at > 20000 && $("#modal").hidden && !typing(document.activeElement) && T.tab !== "allwork" && T.tab !== "classes") { await loadTeacher().catch(() => {}); pageTeacher(); }
   }, 5000);
 }
 const whoHTML = (s) => `<span class="who">${avatarHTML(s.avatar, 30)}<b>${esc(s.name)}</b>${s.last_seen && Date.now() - s.last_seen < 120e3 ? `<span class="dot" title="${t("online")}"></span>` : ""}</span>`;
@@ -854,6 +855,59 @@ function resetPw(id) {
       if (T.showPw) { T.pw = { ...(T.pw || {}), [id]: pw }; if (T.tab === "students") tabStudents($("#tab"), T.data); }
     } catch (e) { toast(e.message); }
   };
+}
+
+// ---------- All work: a card for every student with a picture of their game and their latest code ----------
+const SNAPS = new Map();   // student id -> { saved_at, image } so pictures only redraw when a student saves
+async function tabAllWork(el) {
+  if (!el.dataset.ready) el.innerHTML = `<p class="muted" style="margin-top:12px">…</p>`;
+  const { students } = await api("GET", "/api/teacher/work?class=" + encodeURIComponent(T.classId || "all"));
+  const L = classLabels(T.data.classes);
+  const sortBy = T.workSort || "name";
+  const curOf = (st) => UNIT.find((u) => u.kind !== "side" && !["done", "skipped"].includes(st.progress[u.id]?.status))?.id || "mygame";
+  const titleOf = (st, lid) => { const g = GAME_TYPES[st.template]; return g?.levels[lid]?.title ? tx(g.levels[lid].title) : tx(LEVELS[lid].title); };
+  const peek = (st) => {
+    if (!st.code) return "";
+    const mk = markerRe(curOf(st)).exec(st.code);
+    const block = mk ? st.code.slice(mk.index) : st.code;
+    return block.split("\n").filter((l) => l.trim()).slice(0, 10).join("\n");
+  };
+  const list = [...students].sort((a, b) => sortBy === "saved" ? (b.saved_at || 0) - (a.saved_at || 0)
+    : sortBy === "level" ? UNIT.findIndex((u) => u.id === curOf(a)) - UNIT.findIndex((u) => u.id === curOf(b)) : a.name.localeCompare(b.name));
+  el.dataset.ready = "1";
+  el.innerHTML = `<div class="row" style="margin-top:12px"><h2 style="margin:0">${t("allwork")} (${students.length})</h2><span class="spacer"></span>
+      <label class="row small" style="font-weight:700">${t("sortBy")}<select id="wsort" style="width:auto">
+        ${[["name", t("student")], ["saved", t("lastSaved")], ["level", t("levelCol")]].map(([k, l]) => `<option value="${k}" ${k === sortBy ? "selected" : ""}>${esc(l)}</option>`).join("")}</select></label>
+      <button class="btn small" id="wrefresh">↻ ${t("refresh")}</button></div>
+    ${students.length ? "" : `<p class="panel">${t("noStudents")}</p>`}
+    <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(250px,1fr));margin-top:12px">
+    ${list.map((st) => { const lid = curOf(st), p = st.progress[lid], stuck = isStuck(p), g = GAME_TYPES[st.template]; return `
+      <article class="card" style="justify-items:stretch;align-content:start;text-align:left;${stuck ? "outline:3px solid var(--bad)" : ""}">
+        <div class="cab" style="padding:8px"><div class="scr" style="aspect-ratio:1" id="snap-${esc(st.id)}">${SNAPS.get(st.id)?.image ? `<img src="${SNAPS.get(st.id).image}" alt="" style="width:100%;border-radius:8px;image-rendering:pixelated">` : st.code ? `<span class="small muted">…</span>` : `<span class="small muted">${t("noGameYet")}</span>`}</div></div>
+        <div class="row" style="gap:6px">${whoHTML(st)}<span class="spacer"></span>${stuck ? `<span class="chip" style="background:var(--bad);color:#fff">${t("st_stuck")}</span>` : ""}</div>
+        <div class="small muted">${g ? esc(tx(g.name)) : "–"}${allMode() ? " · " + esc(L[st.class_id] || "") : ""} · ${t("lastSaved")}: ${ago(st.saved_at)}</div>
+        <div class="small"><b>${t("workingOn")}:</b> ${esc(titleOf(st, lid))}${p ? ` · ${t("tries")} ${p.attempts} · ${t("hint")}s ${p.hints_used}` : ""}</div>
+        ${st.code ? `<pre class="console" style="height:auto;max-height:150px;font-size:12px;margin:0">${esc(peek(st))}</pre>` : ""}
+        <button class="btn primary small" data-stu="${esc(st.id)}">👁 ${t("seeWork")}</button>
+      </article>`; }).join("")}</div>`;
+  $("#wsort", el).onchange = (e) => { T.workSort = e.target.value; tabAllWork(el); };
+  $("#wrefresh", el).onclick = () => tabAllWork(el);
+  $$("[data-stu]", el).forEach((b) => (b.onclick = () => studentDrawer(b.dataset.stu)));
+  // Draw pictures one at a time in a hidden game runner (only for games saved since the last picture).
+  const todo = list.filter((st) => st.code && SNAPS.get(st.id)?.saved_at !== st.saved_at);
+  if (!todo.length) return;
+  const box = document.createElement("div");
+  box.style.cssText = "position:fixed;left:-9999px;top:0;width:200px;height:200px";
+  document.body.appendChild(box);
+  const r = new Runner(box);
+  for (const st of todo) {
+    if (!el.isConnected || T.tab !== "allwork") break;
+    const res = await r.snapshot(st.code);
+    SNAPS.set(st.id, { saved_at: st.saved_at, image: res.image });
+    const slot = document.getElementById("snap-" + st.id);
+    if (slot && res.image) slot.innerHTML = `<img src="${res.image}" alt="" style="width:100%;border-radius:8px;image-rendering:pixelated">`;
+  }
+  r.destroy(); box.remove();
 }
 
 // ---------- Classes: every class with its roster; view, rename, delete ----------

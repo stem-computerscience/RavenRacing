@@ -139,6 +139,17 @@ addEventListener("message", (e) => {
   if (m.lang) pq.set_lang(m.lang);
   if (m.type === "key") return setKey(m.key, m.down);
   if (m.type === "stop") return stop();
+  if (m.type === "snapshot") {
+    // A still picture of a game after about a second of play, for the teacher's All work screen. No sound.
+    if (running) stop("restart");
+    runId++;
+    ns = pq.new_namespace();
+    const err = pq.run(String(m.code || ""), ns)?.toJs({ dict_converter: Object.fromEntries });
+    let f = JSON.parse(pq.snapshot());
+    if (!err) for (let i = 0; i < 60; i++) { f = JSON.parse(pq.frame(ns)); if (f.error || f.over) break; }
+    draw(f);
+    return send({ type: "snap", id: m.id, image: cv.toDataURL("image/png"), error: err || f.error || null });
+  }
   if (m.type === "run" || m.type === "check") {
     if (running) stop("restart");
     runId++;
