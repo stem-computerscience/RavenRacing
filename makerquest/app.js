@@ -126,7 +126,7 @@ async function pageStudent(me) {
   ME = me;
   app.innerHTML = `<div class="top"><span>${ava(ME.user, 24)}</span><b>${esc(ME.user.name)}</b><span>${esc(ME.className)}</span><span class="sp"></span><button class="ghost" id="so" type="button">Sign out</button></div>
   <header class="band hud">
-    <div><h1>micro:bit Maker Quest</h1><p>Creating Apps with Devices, played as 17 worlds. Your progress saves to your account.</p></div>
+    <div><h1>micro:bit Maker Quest</h1><p>Creating Apps with Devices: 17 planets across 4 star systems, with a boss guarding each one. Your progress saves to your account.</p></div>
     <div class="stats">
       <div class="stat"><b id="rank"></b><span>Rank</span></div>
       <div class="stat"><b id="xp"></b><span>Total</span></div>
@@ -136,7 +136,7 @@ async function pageStudent(me) {
     <div class="xpnote" id="xpnote"></div>
     <div class="pacebar" id="pacebar" hidden></div>
   </header>
-  <nav class="strip" id="strip" aria-label="Worlds"></nav>
+  <section class="space"><div class="sectors" id="sectors" role="tablist" aria-label="Star systems"></div><div class="mapwrap" id="strip"></div></section>
   <main class="band main">
     <aside class="side">
       <div class="boardwrap"><div id="board" class="boardbox"></div><p class="boardcap" id="boardcap"></p></div>
@@ -252,11 +252,102 @@ function bossPad(b, k, P) {
   const sub = beaten ? "Beaten!" : lk ? "Locked" : st.attempts ? `Test ${st.best}/${st.total}` : open ? "Ready to fight" : day ? "Boss day " + niceDate(day).replace(/^\w+, /, "") : "Clear Worlds " + b.worlds[0] + "–" + b.worlds.at(-1);
   return `<button class="pad bosspad${k === UI.cur ? " on" : ""}${beaten ? " done" : ""}" data-w="${k}" type="button" aria-label="Boss ${b.n}: ${esc(b.name)}, ${esc(sub)}"><span class="n">Boss ${b.n}</span><span class="t">${esc(b.name)}</span><span class="due">${esc(sub)}</span><span class="fill"><i style="width:${beaten ? 100 : st.best != null ? (70 * st.best) / st.total : 0}%"></i></span></button>`;
 }
+// ---------- the star map (like PyQuest's world map, but planets) ----------
+// 4 star systems, one per boss. Each shows its planets (worlds) on a flight path, a Deeper Dive moon
+// orbiting each planet, and the boss planet at the end. A rocket marks the planet you're on.
+const SECTORS = BOSSES.map((b, i) => ({ i, b, name: ["Inner Orbit", "Asteroid Belt", "Nebula Reach", "Outer Rim"][i], hue: ["#2a1f6b", "#0f3b4f", "#4a1747", "#4a2a0c"][i], glow: ["#7a5cff", "#2fd3c6", "#ff5fb0", "#ffa53f"][i] }));
+const sectorOf = (k) => { const st = STOPS[k]; const n = st.kind === "b" ? st.b.after : st.w.n; return SECTORS.findIndex((x) => n <= x.b.after); };
+// Each planet's look: base color, then a feature (bands, ring, craters).
+const PLANETS = [["#ff8a3d", "bands"], ["#b86bff", "ring"], ["#ff4d4d", "craters"], ["#2fc9c0", "bands"], ["#ffcf3f", "ring"], ["#4f86ff", "craters"],
+  ["#5fd16f", "bands"], ["#ff6fa3", "ring"], ["#ff9f43", "bands"], ["#9d8bff", "ring"], ["#f2d94e", "craters"], ["#4fc1e9", "ring"],
+  ["#e8452c", "craters"], ["#6fe3a8", "bands"], ["#f5b642", "ring"], ["#6fb0ff", "bands"], ["#fd6fa8", "ring"]];
+const SLOTS = { 5: [[95, 300], [280, 170], [465, 300], [650, 170], [835, 300]], 4: [[155, 290], [375, 165], [595, 290], [815, 165]] };
+let starSeed = 7;
+const rnd = () => (starSeed = (starSeed * 16807) % 2147483647) / 2147483647;
+function starfield(sec, W, H) {
+  starSeed = 11 + sec.i * 97; let st = "";
+  for (let i = 0; i < 140; i++) { const r = rnd() < 0.08 ? 1.8 : rnd() * 1.1 + 0.3; st += `<circle cx="${(rnd() * W).toFixed(0)}" cy="${(rnd() * H).toFixed(0)}" r="${r.toFixed(1)}" fill="#fff" opacity="${(0.35 + rnd() * 0.6).toFixed(2)}"/>`; }
+  return `<defs><radialGradient id="neb${sec.i}" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="${sec.glow}" stop-opacity=".45"/><stop offset="1" stop-color="${sec.glow}" stop-opacity="0"/></radialGradient>
+    <linearGradient id="sky${sec.i}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#05060f"/><stop offset=".55" stop-color="${sec.hue}"/><stop offset="1" stop-color="#05060f"/></linearGradient></defs>
+    <rect width="${W}" height="${H}" fill="url(#sky${sec.i})"/><ellipse cx="${W * 0.3}" cy="${H * 0.35}" rx="320" ry="160" fill="url(#neb${sec.i})"/><ellipse cx="${W * 0.8}" cy="${H * 0.75}" rx="260" ry="120" fill="url(#neb${sec.i})"/>${st}`;
+}
+function planetSVG(n, r, dim) {
+  const [col, kind] = PLANETS[n], id = "pl" + n + (dim ? "d" : "");
+  const base = dim ? "#4a5560" : col;
+  let feat = "";
+  if (kind === "bands") feat = `<g clip-path="url(#${id}c)" opacity=".35">${[-0.45, -0.1, 0.25, 0.6].map((t, i) => `<ellipse cx="0" cy="${(t * r).toFixed(1)}" rx="${r * 1.2}" ry="${(r * (i % 2 ? 0.09 : 0.14)).toFixed(1)}" fill="${i % 2 ? "#fff" : "#000"}"/>`).join("")}</g>`;
+  if (kind === "craters") feat = `<g opacity=".28">${[[-0.35, -0.2, 0.22], [0.3, 0.25, 0.16], [0.05, -0.45, 0.12], [-0.15, 0.45, 0.1]].map(([x, y, s]) => `<circle cx="${(x * r).toFixed(1)}" cy="${(y * r).toFixed(1)}" r="${(s * r).toFixed(1)}" fill="#000"/>`).join("")}</g>`;
+  const ring = kind === "ring";
+  const ringBack = ring ? `<path d="M${-r * 1.55} 0 A${r * 1.55} ${r * 0.38} 0 0 1 ${r * 1.55} 0" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="${r * 0.13}" transform="rotate(-16)"/>` : "";
+  const ringFront = ring ? `<path d="M${-r * 1.55} 0 A${r * 1.55} ${r * 0.38} 0 0 0 ${r * 1.55} 0" fill="none" stroke="#fff" stroke-opacity=".6" stroke-width="${r * 0.13}" transform="rotate(-16)"/>` : "";
+  return `<defs><radialGradient id="${id}g" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".25" stop-color="${base}"/><stop offset="1" stop-color="#000" stop-opacity=".85"/></radialGradient><clipPath id="${id}c"><circle r="${r}"/></clipPath></defs>
+    ${ringBack}<circle r="${r}" fill="${base}"/><circle r="${r}" fill="url(#${id}g)"/>${feat}${ringFront}`;
+}
+function bossPlanetSVG(r, beaten) {
+  const c = beaten ? "#3e8f66" : "#b3261e";
+  return `<defs><radialGradient id="bpg${beaten ? 1 : 0}" cx="40%" cy="35%" r="75%"><stop offset="0" stop-color="#ff9a7a" stop-opacity=".6"/><stop offset=".3" stop-color="${c}"/><stop offset="1" stop-color="#1a0505"/></radialGradient></defs>
+    ${beaten ? "" : `<circle r="${r * 1.35}" fill="${c}" opacity=".22"/>`}<circle r="${r}" fill="url(#bpg${beaten ? 1 : 0})"/>
+    ${[[-0.55, -0.55], [0.6, -0.4], [0.15, 0.65], [-0.6, 0.35]].map(([x, y]) => `<path d="M${x * r} ${y * r} l${x * r * 0.35} ${y * r * 0.35}" stroke="${c}" stroke-width="${r * 0.12}" stroke-linecap="round"/>`).join("")}
+    ${beaten ? `<path d="M${-r * 0.4} ${-r * 0.15} q${r * 0.12} ${-r * 0.12} ${r * 0.24} 0 M${r * 0.16} ${-r * 0.15} q${r * 0.12} ${-r * 0.12} ${r * 0.24} 0" stroke="#082" stroke-width="5" fill="none" stroke-linecap="round"/>`
+      : `<path d="M${-r * 0.48} ${-r * 0.32} L${-r * 0.12} ${-r * 0.12} L${-r * 0.48} ${-r * 0.02}Z M${r * 0.48} ${-r * 0.32} L${r * 0.12} ${-r * 0.12} L${r * 0.48} ${-r * 0.02}Z" fill="#ffe14d"/>`}
+    <path d="M${-r * 0.42} ${r * 0.3} L${r * 0.42} ${r * 0.3} ${beaten ? `Q0 ${r * 0.62} ${-r * 0.42} ${r * 0.3}` : `L${r * 0.3} ${r * 0.46} L${r * 0.15} ${r * 0.3} L0 ${r * 0.46} L${-r * 0.15} ${r * 0.3} L${-r * 0.3} ${r * 0.46}Z`}" fill="${beaten ? "#0b3" : "#fff"}" opacity=".9"/>`;
+}
+const ROCKET = `<g class="rocket"><path d="M0 -26 C10 -16 12 -2 10 12 L-10 12 C-12 -2 -10 -16 0 -26Z" fill="#e9eef2"/><circle cy="-6" r="5" fill="#4fc1e9" stroke="#26313a" stroke-width="2"/><path d="M-10 4 L-18 16 L-10 14Z M10 4 L18 16 L10 14Z" fill="#ff4d4d"/><path d="M-6 12 Q0 30 6 12Z" fill="#ffb02e"/></g>`;
+function mapSVG(si) {
+  const sec = SECTORS[si], W = 1120, H = 450, P = paceInfo(ME.pacing), today = P?.today || todayIso();
+  const ks = STOPS.map((st, k) => ({ st, k })).filter(({ k }) => sectorOf(k) === si);
+  const worlds = ks.filter((x) => x.st.kind === "w"), bossK = ks.find((x) => x.st.kind === "b");
+  const slots = SLOTS[worlds.length] || SLOTS[5];
+  const pos = worlds.map((x, i) => slots[i]), bpos = [1030, 225];
+  const pts = [...pos, bpos];
+  let d = `M${pts[0][0]} ${pts[0][1]}`;
+  for (let i = 1; i < pts.length; i++) { const [x0, y0] = pts[i - 1], [x1, y1] = pts[i]; d += ` C${x0 + (x1 - x0) * 0.5} ${y0}, ${x0 + (x1 - x0) * 0.5} ${y1}, ${x1} ${y1}`; }
+  const nodes = worlds.map(({ st, k }, i) => {
+    const w = st.w, [x, y] = pos[i], up = y < 230;
+    const done = wDone(w), cleared = clearedForPace(ME.progress, w.n), cur = k === UI.cur, lk = locked(w);
+    const due = P?.due(w.n), late = due && due < today && !cleared;
+    const dive = w.m.find((m) => m.t === "d"), diveDone = dive && mDone(dive), diveOpen = cleared;
+    const [mx, my] = [x + 52, up ? y + 64 : y - 64];
+    const sub = done ? "★ Planet cleared" : lk ? "Locked" : late ? "Overdue" : due ? "Due " + niceDate(due).replace(/^\w+, /, "") : `${coreOf(w).filter(mDone).length}/${coreOf(w).length} missions`;
+    return `<path d="M${x} ${y} Q${(x + mx) / 2 + (mx > x ? 12 : -12)} ${y} ${mx} ${my}" fill="none" stroke="#f3cf7a" stroke-opacity="${diveOpen ? 0.7 : 0.25}" stroke-width="3" stroke-dasharray="2 9" stroke-linecap="round"/>
+      <g class="moon${diveOpen ? "" : " dim"}" transform="translate(${mx} ${my})" tabindex="0" role="link" data-k="${k}" data-dive="${dive?.id || ""}" aria-label="Deeper Dive moon of World ${w.n}: ${diveDone ? "done" : diveOpen ? "unlocked" : "locked until the planet is cleared"}">
+        <circle r="15" fill="${diveOpen ? "#cfd8e3" : "#4a5560"}"/><circle cx="-4" cy="-4" r="4" fill="#000" opacity=".2"/><circle cx="5" cy="4" r="3" fill="#000" opacity=".2"/>
+        ${diveDone ? `<text y="5" text-anchor="middle" font-size="14" fill="#3a2a00">★</text>` : diveOpen ? "" : `<text y="5" text-anchor="middle" font-size="11" fill="#cfd8e3">🔒</text>`}
+        <text class="mlabel" y="${up ? 32 : -22}" text-anchor="middle">Deeper Dive</text></g>
+      <g class="node${cur ? " current" : ""}${lk ? " dim" : ""}${late ? " late" : ""}" transform="translate(${x} ${y})" tabindex="0" role="link" data-k="${k}" aria-label="World ${w.n}: ${esc(w.g)}, ${esc(sub)}">
+        ${cur ? `<circle class="ring" r="58" fill="none" stroke="#f3cf7a" stroke-width="4" stroke-dasharray="6 6"/>` : late ? `<circle r="54" fill="none" stroke="#ff4d4d" stroke-width="3"/>` : ""}
+        ${planetSVG(w.n, 42, lk)}
+        <text y="12" text-anchor="middle" class="pnum">${w.n}</text>
+        ${done ? `<g transform="translate(34 -36)"><circle r="14" fill="#f3cf7a"/><text text-anchor="middle" y="6" font-size="17" fill="#3a2a00">★</text></g>` : ""}
+        ${cur ? `<g transform="translate(-58 -46) rotate(-30)">${ROCKET}</g>` : ""}
+        <text class="label" text-anchor="middle" y="${up ? -64 : 72}">World ${w.n}: ${esc(w.g)}</text>
+        <text class="sub${late ? " bad" : ""}" text-anchor="middle" y="${up ? -46 : 92}">${esc(sub)}</text></g>`;
+  }).join("");
+  const b = bossK.st.b, bi = bossInfo(ME.progress, b.id), beaten = bossDefeated(ME.progress, b.id), bcur = bossK.k === UI.cur;
+  const bday = P ? P.dates[BOSS_SPANS[b.id].first - 1] : null, bopen = bossOpen(ME.progress, b.id, P?.dates, today), blk = (ME.locks || []).includes(b.id);
+  const bsub = beaten ? "★ Defeated!" : blk ? "Locked" : bi.attempts ? `Test ${bi.best}/${bi.total}` : bopen ? "Ready to fight!" : bday ? "Boss day " + niceDate(bday).replace(/^\w+, /, "") : "Clear the planets";
+  const boss = `<g class="node boss${bcur ? " current" : ""}" transform="translate(${bpos[0]} ${bpos[1]})" tabindex="0" role="link" data-k="${bossK.k}" aria-label="Boss ${b.n}: ${esc(b.name)}, ${esc(bsub)}">
+      ${bcur ? `<circle class="ring" r="72" fill="none" stroke="#f3cf7a" stroke-width="4" stroke-dasharray="6 6"/>` : ""}
+      ${bossPlanetSVG(54, beaten)}${bcur ? `<g transform="translate(-70 -54) rotate(-30)">${ROCKET}</g>` : ""}
+      <text class="label" text-anchor="middle" y="84">Boss ${b.n}</text><text class="label" text-anchor="middle" y="104">${esc(b.name)}</text><text class="sub${bopen && !beaten ? " hot" : ""}" text-anchor="middle" y="124">${esc(bsub)}</text></g>`;
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Star map: ${esc(sec.name)}">${starfield(sec, W, H)}
+    <text x="24" y="38" class="secname">System ${si + 1}: ${esc(sec.name)}</text><text x="24" y="60" class="secsub">Worlds ${b.worlds[0]}–${b.worlds.at(-1)} · Boss ${b.n} guards the way out</text>
+    <path d="${d}" fill="none" stroke="#000" stroke-opacity=".35" stroke-width="16" stroke-linecap="round"/>
+    <path d="${d}" fill="none" stroke="${sec.glow}" stroke-opacity=".8" stroke-width="5" stroke-dasharray="2 14" stroke-linecap="round"/>
+    ${nodes}${boss}</svg>`;
+}
 function strip() {
-  const P = paceInfo(ME.pacing);
-  $("strip").innerHTML = STOPS.map((stop, k) => { if (stop.kind === "b") return bossPad(stop.b, k, P); const w = stop.w; const due = P?.due(w.n), late = due && due < P.today && !clearedForPace(ME.progress, w.n);
-    return `<button class="pad${k === UI.cur ? " on" : ""}${wDone(w) ? " done" : ""}${late ? " late" : ""}" data-w="${k}" type="button" aria-label="World ${w.n}: ${esc(w.g)}${locked(w) ? " (locked)" : ""}${due ? ", due " + niceDate(due) : ""}${late ? ", overdue" : ""}">${locked(w) ? `<span class="lk">Locked</span>` : ""}<span class="n">World ${w.n}</span><span class="t">${esc(w.g)}</span>${due ? `<span class="due">${late ? "Overdue · " : "Due "}${esc(niceDate(due).replace(/^\w+, /, ""))}</span>` : ""}<span class="fill"><i style="width:${wPct(w)}%"></i></span></button>`; }).join("");
-  $$(".pad", $("strip")).forEach((p) => (p.onclick = () => go(+p.dataset.w)));
+  const si = UI.sector ?? sectorOf(UI.cur);
+  $("sectors").innerHTML = SECTORS.map((sec, i) => {
+    const ws = sec.b.worlds.map((n) => W[n]), cleared = ws.filter((w) => wDone(w)).length, beat = bossDefeated(ME.progress, sec.b.id);
+    return `<button type="button" role="tab" aria-selected="${i === si}" data-sec="${i}" class="${i === si ? "on" : ""}" style="--g:${sec.glow}"><b>System ${i + 1}: ${esc(sec.name)}</b><span>${cleared}/${ws.length} planets · Boss ${sec.b.n} ${beat ? "★" : "–"}</span></button>`;
+  }).join("");
+  $("strip").innerHTML = mapSVG(si);
+  $$("[data-sec]", $("sectors")).forEach((b) => (b.onclick = () => { UI.sector = +b.dataset.sec; saveUI(); strip(); }));
+  $$("[data-k]", $("strip")).forEach((g) => {
+    const open = () => { UI.sector = null; if (g.dataset.dive) UI.open[g.dataset.dive] = true; go(+g.dataset.k); $("world").scrollIntoView({ behavior: "smooth", block: "start" }); };
+    g.onclick = open; g.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } };
+  });
 }
 function hud() {
   const x = ME.member.xp, r = rankFor(x);
@@ -353,7 +444,7 @@ function world() {
 }
 function render() { strip(); hud(); world(); board(stopIcon(curStop()), false); paintBtns(); }
 function refresh(fl) { const y = window.scrollY; strip(); hud(); world(); window.scrollTo(0, y); board(stopIcon(curStop()), fl); paintBtns(); }
-function go(k) { UI.cur = (k + STOPS.length) % STOPS.length; L.na = L.nb = L.ns = 0; L.t0 = L.temp; saveUI(); render(); mbIcon(); $("strip").children[UI.cur]?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" }); }
+function go(k) { UI.cur = (k + STOPS.length) % STOPS.length; UI.sector = null; L.na = L.nb = L.ns = 0; L.t0 = L.temp; saveUI(); render(); mbIcon(); }
 
 // Saves go one at a time so quick clicks can't arrive out of order.
 let saving = 0, chain = Promise.resolve();

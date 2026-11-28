@@ -238,6 +238,29 @@ svg.photo .lit{filter:drop-shadow(0 0 3px #ff5a40)}
 .loginboard svg{width:100%;height:auto;display:block}
 .bossphoto{width:120px;flex:none}
 .bossphoto svg{width:100%;height:auto;display:block}
+.space{background:#05060f;border-bottom:1px solid var(--edge);padding:12px max(4vw,16px) 16px;display:grid;gap:10px}
+.sectors{display:flex;gap:8px;overflow-x:auto}
+.sectors button{flex:1 0 200px;text-align:left;background:#0d1020;border:1px solid #2a2f45;border-radius:12px;padding:8px 12px;min-height:52px;display:grid;gap:2px;color:var(--ink)}
+.sectors button span{font-size:13px;color:var(--mute)}
+.sectors button.on{border-color:var(--g);box-shadow:0 0 0 2px var(--g) inset;background:#121630}
+.mapwrap{border-radius:16px;overflow-x:auto;border:1px solid #2a2f45}
+.mapwrap svg{display:block;width:100%;min-width:760px;height:auto}
+.mapwrap .node,.mapwrap .moon{cursor:pointer;outline:none}
+.mapwrap .node:hover>circle:not(.ring),.mapwrap .node:focus-visible>circle:not(.ring){filter:brightness(1.2)}
+.mapwrap .node:focus-visible .label,.mapwrap .moon:focus-visible .mlabel{text-decoration:underline}
+.mapwrap .dim{opacity:.55}
+.mapwrap .label{font:700 17px "Chakra Petch",system-ui,sans-serif;fill:#fff;paint-order:stroke;stroke:#05060f;stroke-width:5px}
+.mapwrap .sub{font:600 14px "Atkinson Hyperlegible",system-ui,sans-serif;fill:#c9d3dd;paint-order:stroke;stroke:#05060f;stroke-width:4px}
+.mapwrap .sub.bad{fill:#ff8a7a}.mapwrap .sub.hot{fill:#ffe14d}
+.mapwrap .mlabel{font:600 12px "Atkinson Hyperlegible",system-ui,sans-serif;fill:#cfd8e3;paint-order:stroke;stroke:#05060f;stroke-width:4px}
+.mapwrap .pnum{font:700 30px "Chakra Petch",system-ui,sans-serif;fill:#fff;paint-order:stroke;stroke:rgba(0,0,0,.45);stroke-width:4px}
+.mapwrap .secname{font:700 22px "Chakra Petch",system-ui,sans-serif;fill:#fff}
+.mapwrap .secsub{font:14px "Atkinson Hyperlegible",system-ui,sans-serif;fill:#aab4c0}
+.mapwrap .ring{animation:spin 18s linear infinite;transform-box:fill-box;transform-origin:center}
+.mapwrap .rocket{animation:bob 2.4s ease-in-out infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes bob{50%{transform:translateY(-5px)}}
+@media(prefers-reduced-motion:reduce){.mapwrap .ring,.mapwrap .rocket{animation:none}}
 #printcards{display:none}
 @media print{body>*:not(#printcards){display:none!important}#printcards{display:grid!important;grid-template-columns:1fr 1fr;gap:0;color:#000;background:#fff}
 .pcard{border:1px dashed #999;padding:14px 16px;display:grid;gap:6px;break-inside:avoid;height:2.4in;font:14px/1.3 system-ui,sans-serif}.pcard .w{font-size:20px;font-weight:800}.pcard code{font:700 22px/1.2 ui-monospace,monospace;background:none;border:0;color:#000;padding:0}}
