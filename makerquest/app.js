@@ -637,10 +637,10 @@ function drawTeacher() {
   ({ progress: tabProgress, lessons: tabLessons, pacing: tabPacing, allwork: tabAllWork, mastery: tabMastery, hardware: tabHardware, students: tabStudents, classes: tabClasses, controls: tabControls, leaderboard: tabBoard })[T.tab]($("tab"), D);
 }
 function addClass() {
-  const { el, close } = openModal(`<h2 id="modal-title">Add a Maker Quest class</h2><label class="f">Class name<input class="t" id="cn" maxlength="40" autofocus placeholder="2Q7P micro:bit"></label><div class="err" id="cnerr" role="alert"></div><div class="row"><button class="btn pri" id="ok" type="button">Create</button><button class="btn" data-close type="button">Cancel</button></div>`, true);
+  const { el, close } = openModal(`<h2 id="modal-title">Add a Maker Quest class</h2><label class="f">Class name<input class="t" id="cn" maxlength="40" autofocus placeholder="2Q7P micro:bit"></label><label style="display:flex;gap:10px;align-items:flex-start;margin:10px 0 4px;cursor:pointer"><input type="checkbox" id="cnlock" checked style="margin-top:4px"> <span>Start with every world and boss locked. Unlock them in Controls as the class gets there.</span></label><div class="err" id="cnerr" role="alert"></div><div class="row"><button class="btn pri" id="ok" type="button">Create</button><button class="btn" data-close type="button">Cancel</button></div>`, true);
   $("ok").onclick = async () => {
     const name = $("cn").value.replace(/\s+/g, " ").trim();
-    try { const r = await api("POST", "/api/mq/teacher/classes", { name }); T.classId = r.id; close(); await loadTeacher(); drawTeacher(); }
+    try { const r = await api("POST", "/api/mq/teacher/classes", { name, locked: $("cnlock").checked }); T.classId = r.id; if (r.locks?.length) T.tab = "controls"; close(); await loadTeacher(); drawTeacher(); if (r.locks?.length) toast("Class created with everything locked. Unlock World 0 to begin."); }
     catch (e) { $("cnerr").textContent = errText(e); }
   };
 }
@@ -900,12 +900,16 @@ async function tabClasses(el) {
 }
 function tabControls(el, D) {
   if (allMode()) { el.innerHTML = `<div class="panel"><h2>Controls</h2><p>Pick one class at the top to lock or unlock its worlds.</p></div>`; return; }
-  el.innerHTML = `<div class="panel"><h2>Lock worlds and bosses</h2><p class="lnote">Students in ${esc(classNames()[D.classId] || "this class")} can read a locked world but can't tick off its missions. A locked boss can't be fought until you unlock it (otherwise it opens on boss day or when a student clears its worlds).</p>
+  el.innerHTML = `<div class="panel"><div class="row"><h2>Lock worlds and bosses</h2><span class="sp"></span><button class="btn small" id="unext" type="button">Unlock next</button><button class="btn small" id="uall" type="button">Unlock all</button><button class="btn small" id="lall" type="button">Lock all</button></div><p class="lnote">Students in ${esc(classNames()[D.classId] || "this class")} can read a locked world but can't tick off its missions. A locked boss can't be fought until you unlock it (otherwise it opens on boss day or when a student clears its worlds).</p>
   <div class="steps" style="margin-top:10px">${BOSSES.map((b) => `<label><input type="checkbox" data-lock="${b.id}"${D.locks.includes(b.id) ? " checked" : ""}><span><b>Boss ${b.n}: ${esc(b.name)}</b> <span class="lnote">test on Worlds ${b.worlds[0]}–${b.worlds.at(-1)}. Lock it to hold the test until you're ready.</span>${D.locks.includes(b.id) ? " · locked" : ""}</span></label>`).join("")}${W.map((w) => `<label><input type="checkbox" data-lock="w${w.n}"${D.locks.includes("w" + w.n) ? " checked" : ""}><span><b>${esc(worldName(w.n))}</b> <span class="lnote">${esc(w.o)}</span>${D.locks.includes("w" + w.n) ? " · locked" : ""}</span></label>`).join("")}</div></div>`;
-  $$("[data-lock]", el).forEach((c) => (c.onchange = async () => {
-    const locks = $$("[data-lock]", el).filter((x) => x.checked).map((x) => x.dataset.lock);
-    try { const r = await api("PUT", `/api/mq/teacher/classes/${encodeURIComponent(D.classId)}/locks`, { locks }); T.data.locks = r.locks; tabControls(el, T.data); } catch (e) { toast(errText(e)); }
-  }));
+  const save = async (locks, msg) => { try { const r = await api("PUT", `/api/mq/teacher/classes/${encodeURIComponent(D.classId)}/locks`, { locks }); T.data.locks = r.locks; tabControls(el, T.data); if (msg) toast(msg); } catch (e) { toast(errText(e)); } };
+  $$("[data-lock]", el).forEach((c) => (c.onchange = () => save($$("[data-lock]", el).filter((x) => x.checked).map((x) => x.dataset.lock))));
+  $("uall").onclick = () => save([], "Everything unlocked");
+  $("lall").onclick = () => save([...BOSSES.map((b) => b.id), ...W.map((w) => "w" + w.n)], "Everything locked");
+  // Unlock the next locked stop on the map, in order (a boss comes after its worlds).
+  $("unext").onclick = () => { const order = STOPS.map((st) => (st.kind === "w" ? "w" + st.w.n : st.b.id)); const nx = order.find((id) => D.locks.includes(id));
+    if (!nx) return toast("Everything is already unlocked");
+    save(D.locks.filter((l) => l !== nx), "Unlocked " + (nx.startsWith("w") ? worldName(+nx.slice(1)) : "Boss " + bossById[nx].n)); };
 }
 function tabBoard(el, D) {
   el.innerHTML = `<div class="panel"><h2>This week's XP</h2>${D.board.length ? `<ol class="board-list">${D.board.map((r) => `<li><span class="r">${r.rank}</span>${ava(r)}<span>${esc(r.name)}</span><span class="pts">${r.weekXp} XP this week · ${r.xp} total</span></li>`).join("")}</ol>` : "<p>No students yet.</p>"}</div>`;
