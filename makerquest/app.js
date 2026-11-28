@@ -1,7 +1,8 @@
 // Maker Quest app: sign-in, the student game (progress saved to the server) and the teacher dashboard.
 // Talks to the same Cloudflare Worker as PyQuest, under /api/mq/*.
 import { W, XP, TAG, missionById, isCore, coreOf, stepCount, doneFor, rankFor, CONCEPTS, mastery,
-  SPANS, CONTENT_DAYS, TOTAL_DAYS, weekOfDay, classDates, classDayOn, clearedForPace, paceOf, niceDate, todayIso, validIso } from "./data.js";
+  SPANS, CONTENT_DAYS, TOTAL_DAYS, weekOfDay, classDates, classDayOn, clearedForPace, paceOf, niceDate, todayIso, validIso,
+  BOSSES, bossById, BOSS_SPANS, BOSS_XP, bossOpen, bossDefeated } from "./data.js";
 
 const API = String(window.MQ_CONFIG?.api || "").replace(/\/$/, "");
 const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} } };
@@ -24,6 +25,9 @@ const ERR = {
   not_in_app: "You're not in a Maker Quest class yet. Ask your teacher to add you.",
   locked: "Your teacher has locked this world for now.",
   signed_out: "You were signed out. Please sign in again.",
+  dive_locked: "Clear this world's missions first to unlock its Deeper Dive.",
+  boss_not_open: "This boss isn't open yet.",
+  already_taken: "You've already taken this test. Ask your teacher if you can retake it.",
   class_name_taken: "You already have a class with that name.",
   class_name_empty: "Give the class a name.",
 };
@@ -53,8 +57,14 @@ function paceInfo(pacing) {
   return { dates, today, day, week: day ? weekOfDay(Math.min(day, TOTAL_DAYS)) : 0, due: (n) => dates[SPANS[n].last - 1] };
 }
 const weekWorlds = (wk) => SPANS.filter((s) => s.last >= (wk - 1) * 5 + 1 && s.first <= wk * 5).map((s) => s.n);
-const paceChip = (p) => (!p ? "" : p.behind.length ? `<span class="chip behind" title="Overdue: ${p.behind.map((n) => "World " + n).join(", ")}">Behind ${p.behind.length}</span>` : p.ahead ? `<span class="chip ahead">Ahead</span>` : `<span class="chip ahead">On track</span>`);
-const mLabel = (m) => (m.t === "h" ? "Trial" : m.t === "s" ? "Side " + m.lv : "L" + m.lv);
+const weekBosses = (wk) => BOSSES.filter((b) => { const s = BOSS_SPANS[b.id]; return s.last >= (wk - 1) * 5 + 1 && s.first <= wk * 5; });
+const BOSS_ICON = "10101 01110 11011 01110 10101";
+// The map: 17 worlds with a boss after every 4th (one boss every 2 weeks).
+const STOPS = W.flatMap((w) => { const b = BOSSES.find((x) => x.after === w.n); return b ? [{ kind: "w", w }, { kind: "b", b }] : [{ kind: "w", w }]; });
+const stopIcon = (st) => (st.kind === "w" ? st.w.i : BOSS_ICON);
+const bossInfo = (progress, id) => { const c = progress[id]?.steps; const o = c && !Array.isArray(c) ? c : {}; return { attempts: o.attempts || 0, best: o.best ?? null, total: o.total || bossById[id].questions.length, correct: o.correct || [], answers: o.answers || [], retake: !!o.retake, last: o.last ?? null }; };
+const paceChip = (p) => (!p ? "" : p.bossesBehind?.length && !p.behind.length ? `<span class="chip behind" title="Boss tests not beaten: ${p.bossesBehind.map((b) => "Boss " + bossById[b].n).join(", ")}">Boss due</span>` : p.behind.length ? `<span class="chip behind" title="Overdue: ${p.behind.map((n) => "World " + n).join(", ")}">Behind ${p.behind.length}</span>` : p.ahead ? `<span class="chip ahead">Ahead</span>` : `<span class="chip ahead">On track</span>`);
+const mLabel = (m) => (m.t === "h" ? "Trial" : m.t === "d" ? "Dive" : m.t === "s" ? "Side " + m.lv : "L" + m.lv);
 
 // ---------- start ----------
 async function start() {
@@ -135,7 +145,7 @@ async function pageStudent(me) {
     </aside>
     <section id="world" aria-live="polite"></section>
   </main>
-  <footer class="band foot">Each mission matches one level of the Code.org unit and opens it in Code.org. XP: video 25 · predict 50 · skill 100 · side quest 75 each · board trial 100 · project step 150 · boss 250.</footer>`;
+  <footer class="band foot">Each mission matches one level of the Code.org unit and opens it in Code.org. XP: video 25 · predict 50 · skill 100 · Code.org side quest 75 each · board trial 100 · project step 150 · Deeper Dive 150 · checkpoint 250 · boss 300.</footer>`;
   $("so").onclick = signOut;
   wireLink();
   if (!Object.keys(ME.progress).length && !Object.keys(UI.open).length) UI.open["0-1"] = true;
@@ -174,24 +184,31 @@ function board(icon, flash) {
 ${pads}<rect x="10" y="236" width="280" height="4" fill="#0a110e"/>
 <g fill="#0a110e" stroke="#3b5a4c"><rect x="96" y="43" width="108" height="108" rx="6"/></g>${leds}
 <g><circle cx="52" cy="101" r="24" fill="#0a110e" stroke="#3b5a4c"/><circle cx="52" cy="101" r="15" fill="#2b2b2b" stroke="#555"/><circle cx="248" cy="101" r="24" fill="#0a110e" stroke="#3b5a4c"/><circle cx="248" cy="101" r="15" fill="#2b2b2b" stroke="#555"/></g>
-<g font-family="Chakra Petch,sans-serif" font-weight="700" fill="#eef2ea" text-anchor="middle"><text x="52" y="146" font-size="16">A</text><text x="248" y="146" font-size="16">B</text><text x="150" y="180" font-size="14" fill="#a7b5ad">World ${W[UI.cur].n}</text></g>
+<g font-family="Chakra Petch,sans-serif" font-weight="700" fill="#eef2ea" text-anchor="middle"><text x="52" y="146" font-size="16">A</text><text x="248" y="146" font-size="16">B</text><text x="150" y="180" font-size="14" fill="#a7b5ad">${curStop().kind === "w" ? "World " + curStop().w.n : "Boss " + curStop().b.n}</text></g>
 <circle cx="52" cy="101" r="26" fill="transparent" id="btnA" style="cursor:pointer"/><circle cx="248" cy="101" r="26" fill="transparent" id="btnB" style="cursor:pointer"/>`;
   s.classList.remove("flash"); if (flash) { void s.getBoundingClientRect(); s.classList.add("flash"); }
   $("btnA").onclick = () => go(UI.cur - 1); $("btnB").onclick = () => go(UI.cur + 1);
 }
+const curStop = () => STOPS[UI.cur] || STOPS[0];
+function bossPad(b, k, P) {
+  const st = bossInfo(ME.progress, b.id), beaten = bossDefeated(ME.progress, b.id), open = bossOpen(ME.progress, b.id, P?.dates, P?.today || todayIso()), lk = (ME.locks || []).includes(b.id);
+  const day = P ? P.dates[BOSS_SPANS[b.id].first - 1] : null;
+  const sub = beaten ? "Beaten!" : lk ? "Locked" : st.attempts ? `Test ${st.best}/${st.total}` : open ? "Ready to fight" : day ? "Boss day " + niceDate(day).replace(/^\w+, /, "") : "Clear Worlds " + b.worlds[0] + "–" + b.worlds.at(-1);
+  return `<button class="pad bosspad${k === UI.cur ? " on" : ""}${beaten ? " done" : ""}" data-w="${k}" type="button" aria-label="Boss ${b.n}: ${esc(b.name)}, ${esc(sub)}"><span class="n">Boss ${b.n}</span><span class="t">${esc(b.name)}</span><span class="due">${esc(sub)}</span><span class="fill"><i style="width:${beaten ? 100 : st.best != null ? (70 * st.best) / st.total : 0}%"></i></span></button>`;
+}
 function strip() {
   const P = paceInfo(ME.pacing);
-  $("strip").innerHTML = W.map((w, k) => { const due = P?.due(w.n), late = due && due < P.today && !clearedForPace(ME.progress, w.n);
+  $("strip").innerHTML = STOPS.map((stop, k) => { if (stop.kind === "b") return bossPad(stop.b, k, P); const w = stop.w; const due = P?.due(w.n), late = due && due < P.today && !clearedForPace(ME.progress, w.n);
     return `<button class="pad${k === UI.cur ? " on" : ""}${wDone(w) ? " done" : ""}${late ? " late" : ""}" data-w="${k}" type="button" aria-label="World ${w.n}: ${esc(w.g)}${locked(w) ? " (locked)" : ""}${due ? ", due " + niceDate(due) : ""}${late ? ", overdue" : ""}">${locked(w) ? `<span class="lk">Locked</span>` : ""}<span class="n">World ${w.n}</span><span class="t">${esc(w.g)}</span>${due ? `<span class="due">${late ? "Overdue · " : "Due "}${esc(niceDate(due).replace(/^\w+, /, ""))}</span>` : ""}<span class="fill"><i style="width:${wPct(w)}%"></i></span></button>`; }).join("");
   $$(".pad", $("strip")).forEach((p) => (p.onclick = () => go(+p.dataset.w)));
 }
 function hud() {
   const x = ME.member.xp, r = rankFor(x);
   $("rank").textContent = r.name; $("xp").textContent = x.toLocaleString() + " XP";
-  $("bc").textContent = (ME.member.badges || []).length + " / 17";
+  $("bc").textContent = (ME.member.badges || []).length + " / " + (W.length + BOSSES.length);
   $("xpfill").style.width = (r.next ? Math.min(100, (100 * (x - r.at)) / (r.next[0] - r.at)) : 100) + "%";
   $("xpnote").textContent = r.next ? (r.next[0] - x).toLocaleString() + " XP to " + r.next[1] : "Top rank reached. Legendary.";
-  $("blist").innerHTML = W.map((w) => `<span class="bdg${wDone(w) ? " got" : ""}" title="World ${w.n}">${esc(w.bd)}</span>`).join("");
+  $("blist").innerHTML = STOPS.map((st) => st.kind === "w" ? `<span class="bdg${wDone(st.w) ? " got" : ""}" title="World ${st.w.n}">${esc(st.w.bd)}</span>` : `<span class="bdg boss${bossDefeated(ME.progress, st.b.id) ? " got" : ""}" title="Boss ${st.b.n}">${esc(st.b.name)} slayer</span>`).join("");
   paceBanner();
 }
 function paceBanner() {
@@ -204,26 +221,71 @@ function paceBanner() {
   else if (P.day > TOTAL_DAYS || (P.day === TOTAL_DAYS && P.today > P.dates.at(-1))) html = `<b>The 9 weeks are done.</b> Nice work, maker.`;
   else if (P.day > CONTENT_DAYS) html = `<b>Week 9: buffer week.</b> ${pace.behind.length ? `Finish World ${pace.behind.join(", World ")} first, then` : "Polish your final project,"} try Board trials and side quests.`;
   else {
-    const ww = weekWorlds(P.week);
-    html = `<b>Week ${P.week} of 9</b> · this week: World${ww.length > 1 ? "s" : ""} ${ww.join(", ")}` +
+    const ww = weekWorlds(P.week), wb = weekBosses(P.week);
+    html = `<b>Week ${P.week} of 9</b> · this week: World${ww.length > 1 ? "s" : ""} ${ww.join(", ")}${wb.map((b) => ` + Boss ${b.n} on ${esc(niceDate(P.dates[BOSS_SPANS[b.id].first - 1]))}`).join("")}` +
       (next ? ` · next goal: clear World ${next.n} by ${esc(niceDate(P.due(next.n)))}` : "") +
-      (pace.behind.length ? ` · <span class="late-t">${pace.behind.length} world${pace.behind.length > 1 ? "s" : ""} behind (World ${pace.behind.join(", ")})</span>` : pace.ahead ? " · ahead of schedule" : " · on track");
+      (pace.behind.length ? ` · <span class="late-t">${pace.behind.length} world${pace.behind.length > 1 ? "s" : ""} behind (World ${pace.behind.join(", ")})</span>` : pace.bossesBehind.length ? ` · <span class="late-t">Boss ${pace.bossesBehind.map((b) => bossById[b].n).join(", ")} still to beat</span>` : pace.ahead ? " · ahead of schedule" : " · on track");
   }
   el.innerHTML = html;
 }
 const url = (w, lv, sub) => "https://studio.code.org/courses/microbit-2026/units/1/lessons/" + (w + 1) + "/levels/" + lv + (sub ? "/sublevel/" + sub : "");
 function mission(m, w, k) {
-  const T = TAG[m.t], open = UI.open[m.id], d = mDone(m), sk = mSkip(m), lk = locked(w);
+  const T = TAG[m.t], open = UI.open[m.id], d = mDone(m), sk = mSkip(m), diveLocked = m.t === "d" && !clearedForPace(ME.progress, w.n), lk = locked(w) || diveLocked;
   const dis = lk ? " disabled" : "";
-  const head = `<button class="mh" type="button" data-o="${m.id}" aria-expanded="${!!open}"><span class="nr">${d ? "✓" : sk ? "S" : k + 1}</span><span><span class="mt">${fmt(m.title)}</span><span class="mk"><span class="tag ${T[0]}">${T[1]}</span><span>${m.t === "h" ? "Uses your real micro:bit · bonus" : "Code.org Lesson " + w.n + ", Level " + m.lv}</span>${sk ? "<span>Skipped by your teacher</span>" : ""}</span></span><span class="xp">${m.t === "s" ? "+" + XP.s + " each" : "+" + XP[m.t] + " XP"}</span></button>`;
+  const head = `<button class="mh" type="button" data-o="${m.id}" aria-expanded="${!!open}"><span class="num">${d ? "✓" : sk ? "S" : k + 1}</span><span><span class="mt">${fmt(m.title)}</span><span class="mk"><span class="tag ${T[0]}">${T[1]}</span><span>${m.t === "h" ? "Uses your real micro:bit · bonus" : m.t === "d" ? (diveLocked ? "Locked: clear this world's missions to unlock" : "Side quest for early finishers · unlocked!") : "Code.org Lesson " + w.n + ", Level " + m.lv}</span>${sk ? "<span>Skipped by your teacher</span>" : ""}</span></span><span class="xp">${m.t === "s" ? "+" + XP.s + " each" : "+" + XP[m.t] + " XP"}</span></button>`;
   let body;
   if (m.t === "s") body = `<p class="goal">Optional bonus levels. Pick any you like; each one you finish earns XP.</p><div class="sq">${m.q.map((q, i) => `<label><input type="checkbox" data-m="${m.id}" data-i="${i}"${ck(m.id, i) ? " checked" : ""}${dis}><span><b>${fmt(q[0])}</b><span>${fmt(q[1])}</span> · <a href="${url(w.n, m.lv, i + 1)}" target="_blank" rel="noopener">open</a></span></label>`).join("")}</div>`;
   else if (m.t === "h") body = `<p class="goal">${fmt(m.goal)} ${L.on ? "" : "<b>Connect your micro:bit in Board link to play.</b>"}</p><ol class="steps">${m.steps.map((s, i) => { const key = m.keys[i]; return `<li><label><input type="checkbox" data-m="${m.id}" data-i="${i}"${ck(m.id, i) ? " checked" : ""}${key || lk ? " disabled" : ""}><span>${fmt(s)}${key ? `<span class="auto">${key === "a10" ? "(" + Math.min(L.na, 10) + "/10) " : key === "b5" ? "(" + Math.min(L.nb, 5) + "/5) " : key === "sh3" ? "(" + Math.min(L.ns, 3) + "/3) " : ""}checked by the board</span>` : ""}</span></label></li>`; }).join("")}</ol>`;
-  else body = `<p class="goal">${fmt(m.goal)}</p><ol class="steps">${m.steps.map((s, i) => `<li><label><input type="checkbox" data-m="${m.id}" data-i="${i}"${ck(m.id, i) ? " checked" : ""}${dis}><span>${fmt(s)}</span></label></li>`).join("")}</ol>${m.win ? `<p class="win"><b>Win condition:</b> ${fmt(m.win)}</p>` : ""}<a class="go" href="${url(w.n, m.lv)}" target="_blank" rel="noopener">Open this level in Code.org →</a>`;
-  return `<article class="m${d ? " done" : ""}${m.t === "b" ? " boss" : ""}${open ? " open" : ""}">${head}<div class="mb">${body}</div></article>`;
+  else body = `${diveLocked ? `<p class="lockmsg">Finish every core mission in World ${w.n} to unlock this challenge. It's here for when you're done early.</p>` : ""}<p class="goal">${fmt(m.goal)}</p><ol class="steps">${m.steps.map((s, i) => `<li><label><input type="checkbox" data-m="${m.id}" data-i="${i}"${ck(m.id, i) ? " checked" : ""}${dis}><span>${fmt(s)}</span></label></li>`).join("")}</ol>${m.win ? `<p class="win"><b>Win condition:</b> ${fmt(m.win)}</p>` : ""}${m.t === "d" ? `<p class="lnote">Build it in your own App Lab project. Deeper Dives are optional and don't count toward pace.</p>` : `<a class="go" href="${url(w.n, m.lv)}" target="_blank" rel="noopener">Open this level in Code.org →</a>`}`;
+  return `<article class="m${d ? " done" : ""}${m.t === "b" ? " boss" : ""}${m.t === "d" ? " dive" + (diveLocked ? " dlock" : "") : ""}${open ? " open" : ""}">${head}<div class="mb">${body}</div></article>`;
+}
+function bossView(b) {
+  const P = paceInfo(ME.pacing), st = bossInfo(ME.progress, b.id), beaten = bossDefeated(ME.progress, b.id);
+  const lk = (ME.locks || []).includes(b.id), open = !lk && bossOpen(ME.progress, b.id, P?.dates, P?.today || todayIso());
+  const bm = b.buildMission, buildDone = prog(bm.id).status === "done", day = P ? P.dates[BOSS_SPANS[b.id].first - 1] : null;
+  const canTake = open && (st.attempts === 0 || st.retake);
+  const hp = beaten ? 0 : Math.max(0, 100 - (st.best != null ? (70 * st.best) / st.total : 0) - (buildDone ? 30 : 0));
+  UI.ans ||= {}; const ans = (UI.ans[b.id] ||= []);
+  $("world").innerHTML = `<div class="wh"><h2>Boss ${b.n}: ${esc(b.name)}</h2><p class="orig">Test on Worlds ${b.worlds[0]}–${b.worlds.at(-1)} · a full class period${day ? " · boss day " + esc(niceDate(day)) : ""} · +${BOSS_XP} XP and a badge</p></div>
+  <div class="bossbar"><svg viewBox="0 0 60 60" width="64" height="64" aria-hidden="true">${[...BOSS_ICON.replace(/ /g, "")].map((c, i) => `<rect x="${(i % 5) * 12 + 1}" y="${Math.floor(i / 5) * 12 + 1}" width="10" height="10" rx="2" fill="${c === "1" ? (beaten ? "#3e6b55" : "#ff3b2f") : "#3a1714"}"/>`).join("")}</svg>
+    <div style="flex:1"><b>${beaten ? "Defeated!" : "Boss health"}</b><div class="xpbar" style="margin-top:6px"><i style="width:${hp}%;background:var(--led)"></i></div>
+    <p class="lnote">${beaten ? "You beat this boss. Nice work, maker." : "Beat it with 70% or better on the test (9 of 12) and a finished build challenge."}</p></div></div>
+  <p class="story">${esc(b.story)}</p>
+  ${lk ? `<p class="lockmsg">Your teacher has locked this boss for now.</p>` : !open ? `<p class="lockmsg">Opens when you clear Worlds ${b.worlds[0]}–${b.worlds.at(-1)}${day ? ", or on boss day (" + esc(niceDate(day)) + ")" : ""}. Until then, finish your missions and try the Deeper Dives.</p>` : ""}
+  <div class="missions">
+    <article class="m boss open"><div class="mh" style="cursor:default"><span class="num">${buildDone ? "✓" : 1}</span><span><span class="mt">Part 1 · Build: ${esc(bm.title)}</span><span class="mk"><span class="tag tb">Boss build</span><span>Your own App Lab project</span></span></span><span class="xp">${bm.steps.filter((_, i) => ck(bm.id, i)).length}/${bm.steps.length}</span></div>
+      <div class="mb"><p class="goal">${fmt(bm.goal)}</p><ol class="steps">${bm.steps.map((x, i) => `<li><label><input type="checkbox" data-m="${bm.id}" data-i="${i}"${ck(bm.id, i) ? " checked" : ""}${open ? "" : " disabled"}><span>${fmt(x)}</span></label></li>`).join("")}</ol><p class="win"><b>Win condition:</b> ${fmt(bm.win)}</p></div></article>
+    <article class="m boss open"><div class="mh" style="cursor:default"><span class="num">${st.best != null && st.best / st.total >= 0.7 ? "✓" : 2}</span><span><span class="mt">Part 2 · Test: ${b.questions.length} questions</span><span class="mk"><span class="tag tb">Boss test</span><span>${st.attempts ? `Best score ${st.best}/${st.total}${st.attempts > 1 ? " · " + st.attempts + " tries" : ""}` : "One try, unless your teacher allows a retake"}</span></span></span><span class="xp">${st.best != null ? Math.round((100 * st.best) / st.total) + "%" : ""}</span></div>
+      <div class="mb">${canTake ? `<form id="bossform" class="quiz">${b.questions.map((q, i) => `<fieldset><legend><b>${i + 1}.</b> ${esc(q[0])}</legend>${q[1].map((c, j) => `<label><input type="radio" name="q${i}" value="${j}"${ans[i] === j ? " checked" : ""}> <span>${esc(c)}</span></label>`).join("")}</fieldset>`).join("")}
+          <div class="row"><button class="cbtn" type="submit">Submit test</button><span class="lnote" id="qleft"></span></div></form>`
+        : st.attempts ? `<p>${st.best / st.total >= 0.7 ? "<b>Passed!</b>" : "<b>Not passed yet.</b> Ask your teacher about a retake."} Your last try: ${st.last ?? st.best}/${st.total}.</p><ol class="qres">${b.questions.map((q, i) => `<li class="${st.correct[i] ? "ok" : "no"}">${st.correct[i] ? "✓" : "✗"} ${esc(q[0])}</li>`).join("")}</ol>`
+        : `<p class="lnote">The test opens with the boss.</p>`}</div></article>
+  </div>`;
+  $$("input[data-m]", $("world")).forEach((cb) => (cb.onchange = () => setStep(cb.dataset.m, +cb.dataset.i, cb.checked)));
+  const f = $("bossform"); if (!f) return;
+  const left = () => { const n = b.questions.filter((_, i) => ans[i] == null).length; $("qleft").textContent = n ? n + " unanswered" : "All answered"; };
+  left();
+  $$("input[type=radio]", f).forEach((r) => (r.onchange = () => { ans[+r.name.slice(1)] = +r.value; left(); }));
+  f.onsubmit = (e) => {
+    e.preventDefault();
+    const blank = b.questions.filter((_, i) => ans[i] == null).length;
+    const { close } = openModal(`<h2 id="modal-title">Submit your test?</h2><p>${blank ? `<b>${blank} question${blank > 1 ? "s are" : " is"} unanswered.</b> ` : ""}You get one try unless your teacher allows a retake.</p><div class="row"><button class="btn pri" id="y" type="button">Submit</button><button class="btn" data-close type="button" autofocus>Keep working</button></div>`, true);
+    $("y").onclick = async () => {
+      $("y").disabled = true;
+      try {
+        const r = await api("POST", "/api/mq/boss/" + b.id, { answers: b.questions.map((_, i) => ans[i] ?? -1) });
+        close(); ME.progress = r.progress; ME.member = r.member; delete UI.ans[b.id];
+        if (r.defeated) { toast(`Boss defeated! +${r.gain} XP`); mbScroll("BOSS DOWN!"); }
+        else toast(`Score: ${r.score}/${r.total}${r.passed ? " · passed! Finish the build to win." : ""}`);
+        refresh(!!r.defeated); loadBoard();
+      } catch (err) { close(); toast(errText(err)); }
+    };
+  };
 }
 function world() {
-  const w = W[UI.cur], c = coreOf(w);
+  const stop = curStop();
+  if (stop.kind === "b") return bossView(stop.b);
+  const w = stop.w, c = coreOf(w);
   $("world").innerHTML = `<div class="wh"><h2>World ${w.n}: ${esc(w.g)}</h2><p class="orig">Code.org Lesson ${w.n}: ${esc(w.o)} · ${c.filter(mDone).length} of ${c.length} missions cleared · badge: ${esc(w.bd)}${(() => { const P = paceInfo(ME.pacing), sp = SPANS[w.n]; return ` · planned for week ${weekOfDay(sp.first)}${weekOfDay(sp.last) !== weekOfDay(sp.first) ? "–" + weekOfDay(sp.last) : ""} (${sp.last - sp.first + 1} days)${P ? ", due " + esc(niceDate(P.due(w.n))) : ""}`; })()}</p></div>
   ${locked(w) ? `<p class="lockmsg">Your teacher has locked this world for now. You can read the missions, but you can't tick them off yet.</p>` : ""}
   <p class="qotd"><b>Quest question:</b> ${esc(w.q)}</p><p class="story">${fmt(w.s)}</p>
@@ -232,9 +294,9 @@ function world() {
   $$("[data-o]", $("world")).forEach((b) => (b.onclick = () => { UI.open[b.dataset.o] = !UI.open[b.dataset.o]; saveUI(); world(); }));
   $$("input[data-m]", $("world")).forEach((cb) => (cb.onchange = () => setStep(cb.dataset.m, +cb.dataset.i, cb.checked)));
 }
-function render() { strip(); hud(); world(); board(W[UI.cur].i, false); paintBtns(); }
-function refresh(fl) { const y = window.scrollY; strip(); hud(); world(); window.scrollTo(0, y); board(W[UI.cur].i, fl); paintBtns(); }
-function go(k) { UI.cur = (k + W.length) % W.length; L.na = L.nb = L.ns = 0; L.t0 = L.temp; saveUI(); render(); mbIcon(); $("strip").children[UI.cur]?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" }); }
+function render() { strip(); hud(); world(); board(stopIcon(curStop()), false); paintBtns(); }
+function refresh(fl) { const y = window.scrollY; strip(); hud(); world(); window.scrollTo(0, y); board(stopIcon(curStop()), fl); paintBtns(); }
+function go(k) { UI.cur = (k + STOPS.length) % STOPS.length; L.na = L.nb = L.ns = 0; L.t0 = L.temp; saveUI(); render(); mbIcon(); $("strip").children[UI.cur]?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" }); }
 
 // Saves go one at a time so quick clicks can't arrive out of order.
 let saving = 0, chain = Promise.resolve();
@@ -250,13 +312,14 @@ function setStep(mid, i, on) {
     try {
       const r = await api("PUT", "/api/mq/progress/" + encodeURIComponent(mid), { steps: list });
       ME.progress[mid] = { ...ME.progress[mid], ...r.row }; ME.member = r.member;
-      if (r.newBadges?.length) { const w = W.find((x) => "w" + x.n === r.newBadges[0]); toast("Badge unlocked: " + (w?.bd || "") + "!"); mbScroll("BADGE!"); }
+      if (r.defeated) { toast(`Boss defeated! +${r.gain} XP`); mbScroll("BOSS DOWN!"); }
+      else if (r.newBadges?.length) { const w = W.find((x) => "w" + x.n === r.newBadges[0]); toast("Badge unlocked: " + (w?.bd || "") + "!"); mbScroll("BADGE!"); }
       else if (r.gain > 0) { toast("+" + r.gain + " XP · " + (m.t === "s" ? "side quest" : m.title)); mbScroll("+" + r.gain); }
       refresh(r.gain > 0); if (r.gain > 0) loadBoard();
     } catch (e) {
       ME.progress[mid] = before; refresh(false);
       if (e.status === 401) { store.set(TOKEN, null); return pageLogin(ERR.signed_out); }
-      toast(e.message === "locked" ? ERR.locked : "Couldn't save. Check your internet and try again.");
+      toast(ERR[e.message] || "Couldn't save. Check your internet and try again.");
     } finally { saving--; }
   });
 }
@@ -280,9 +343,9 @@ function linkPanelHTML() {
   </div>`;
 }
 async function send(arr) { if (!L.wr) return; try { await L.wr.write(new Uint8Array(arr)); } catch { lost(); } }
-function mbIcon() { if (!L.on) return; const bits = W[UI.cur].i.replace(/ /g, "").split("").map(Number); send([SYX, 0x02, 0, ...bits, END]); }
+function mbIcon() { if (!L.on) return; const bits = stopIcon(curStop()).replace(/ /g, "").split("").map(Number); send([SYX, 0x02, 0, ...bits, END]); }
 function mbScroll(t) { if (!L.on) return; const b = [...new TextEncoder().encode(String(t).slice(0, 40))]; send([SYX, 0x04, 100, ...b.flatMap((x) => [x & 0x7f, (x >> 7) & 0x7f]), END]); }
-function award(key) { const w = W[UI.cur]; const m = w.m.find((x) => x.t === "h"); if (!m || locked(w)) return; const i = m.keys.indexOf(key); if (i < 0 || ck(m.id, i)) return; setStep(m.id, i, true); }
+function award(key) { const stop = curStop(); if (stop.kind !== "w") return; const w = stop.w; const m = w.m.find((x) => x.t === "h"); if (!m || locked(w)) return; const i = m.keys.indexOf(key); if (i < 0 || ck(m.id, i)) return; setStep(m.id, i, true); }
 function note(t, err) { const n = $("lnote"); if (!n) return; n.textContent = t; n.classList.toggle("err", !!err); }
 function paintBtns() { const a = $("btnA"), b = $("btnB"); if (a) a.setAttribute("fill", L.a ? "rgba(243,207,122,.45)" : "transparent"); if (b) b.setAttribute("fill", L.b ? "rgba(243,207,122,.45)" : "transparent"); }
 function showRead() {
@@ -423,44 +486,78 @@ function tabProgress(el, D) {
   if (!D.students.length) { el.innerHTML = `<p class="panel">No students yet. Add them in the Students tab.</p>`; return; }
   const quiet = D.students.filter((s) => !s.last_seen || Date.now() - s.last_seen > 7 * 864e5);
   el.innerHTML = `${quiet.length ? `<p class="lockmsg">Not seen in the last 7 days: ${quiet.map((s) => esc(s.name)).join(", ")}</p>` : ""}
-  <div class="panel scroll"><table><thead><tr><th>Student</th>${W.map((w) => `<th title="${esc(worldName(w.n))}${D.locks.includes("w" + w.n) ? " (locked)" : ""}">W${w.n}${D.locks.includes("w" + w.n) ? " 🔒" : ""}</th>`).join("")}<th>Pace</th><th class="nr">XP</th><th class="nr">Badges</th></tr></thead><tbody>
-  ${D.students.map((s) => { const sp = studentPace(s); return `<tr><td><button class="btn small" data-stu="${esc(s.id)}" type="button">${whoHTML(s)}</button><div class="lnote">${esc(rankFor(s.xp).name)}${classOf(s)}${s.inPyQuest ? " · also in PyQuest" : ""}</div></td>${W.map((w) => {
+  <div class="panel scroll"><table><thead><tr><th>Student</th>${STOPS.map((st) => st.kind === "b" ? `<th class="bth" title="Boss ${st.b.n}: ${esc(st.b.name)} (test score, best of ${st.b.questions.length})">B${st.b.n}${D.locks.includes(st.b.id) ? " 🔒" : ""}</th>` : `<th title="${esc(worldName(st.w.n))}${D.locks.includes("w" + st.w.n) ? " (locked)" : ""}">W${st.w.n}${D.locks.includes("w" + st.w.n) ? " 🔒" : ""}</th>`).join("")}<th>Pace</th><th class="nr">XP</th><th class="nr">Badges</th></tr></thead><tbody>
+  ${D.students.map((s) => { const sp = studentPace(s); return `<tr><td><button class="btn small" data-stu="${esc(s.id)}" type="button">${whoHTML(s)}</button><div class="lnote">${esc(rankFor(s.xp).name)}${classOf(s)}${s.inPyQuest ? " · also in PyQuest" : ""}</div></td>${STOPS.map((st) => {
+    if (st.kind === "b") { const bi = bossInfo(s.progress, st.b.id), beat = bossDefeated(s.progress, st.b.id), late = sp?.bossesBehind?.includes(st.b.id);
+      return `<td><span class="cell ${beat ? "done" : bi.attempts ? "part" : ""}${late ? " late" : ""}" title="Boss ${st.b.n}: ${beat ? "beaten" : bi.attempts ? "test taken, not beaten yet" : "not taken"}${bi.retake ? " · retake allowed" : ""}">${bi.best != null ? bi.best + "/" + bi.total : "–"}${beat ? " ✓" : ""}</span></td>`; }
+    const w = st.w;
     const c = wCount(s.progress, w); const cls = c.done === c.n ? "done" : c.done + c.skip === c.n ? "skip" : c.done || c.started || c.skip ? "part" : "";
     const lab = c.done === c.n ? "✓" : c.done + c.skip === c.n ? "S" : c.done || c.started || c.skip ? `${c.done}/${c.n}` : "–";
     const late = sp?.behind.includes(w.n);
     return `<td><span class="cell ${cls}${late ? " late" : ""}" title="${esc(worldName(w.n))}: ${c.done} of ${c.n} done${c.skip ? ", " + c.skip + " skipped" : ""}${late ? " · overdue" : ""}">${lab}</span></td>`;
   }).join("")}<td>${sp ? paceChip(sp) : `<span class="lnote">no calendar</span>`}</td><td class="nr">${s.xp}</td><td class="nr">${s.badges.length}</td></tr>`; }).join("")}</tbody></table></div>
-  <p class="lnote">✓ world cleared · 2/4 core missions done · S skipped with catch-up · – not started · red outline = past its due date in the Pacing calendar. Select a student to see every mission.</p>`;
+  <p class="lnote">✓ world cleared · 2/4 core missions done · S skipped with catch-up · – not started · B columns = boss test score (✓ = boss beaten: 70%+ and build done) · red outline = past its due date in the Pacing calendar. Select a student to see every mission.</p>`;
   $$("[data-stu]", el).forEach((b) => (b.onclick = () => studentDrawer(b.dataset.stu)));
 }
-// Every world and mission as students see it (read-only), with who in the class has finished each one.
+// Every world, mission and boss as students see it (read-only), with who in the class has finished each one.
+async function bossKeys() { if (!T.keys) { try { T.keys = (await api("GET", "/api/mq/teacher/bosskeys")).keys; } catch { T.keys = {}; } } return T.keys; }
 function tabLessons(el, D) {
   const P = allMode() ? null : paceInfo(D.pacing);
-  if (T.lw == null) T.lw = P && P.day >= 1 && P.day <= CONTENT_DAYS ? weekWorlds(P.week)[0] : 0;
-  const w = W[T.lw], sp = SPANS[w.n], kids = D.students, n = kids.length;
-  const st = (m, s) => s.progress[m.id]?.status;
+  if (T.ls == null) { const wk = P && P.day >= 1 && P.day <= CONTENT_DAYS ? weekWorlds(P.week)[0] : 0; T.ls = STOPS.findIndex((x) => x.kind === "w" && x.w.n === wk); }
+  const stop = STOPS[T.ls] || STOPS[0], kids = D.students, n = kids.length;
   const names = (list) => list.length ? list.map((s) => `<button class="btn small" data-stu="${esc(s.id)}" type="button">${esc(s.name)}</button>`).join(" ") : `<span class="lnote">nobody</span>`;
-  const card = (m, k) => {
-    const T2 = TAG[m.t];
-    const done = kids.filter((s) => st(m, s) === "done"), skip = kids.filter((s) => st(m, s) === "skipped"), started = kids.filter((s) => st(m, s) === "started"), none = kids.filter((s) => !st(m, s));
-    const sideCount = (i) => kids.filter((s) => s.progress[m.id]?.steps?.includes(i)).length;
-    const body = m.t === "s"
-      ? `<p class="goal">Optional bonus levels; students pick any. Each one earns ${XP.s} XP.</p><ul class="tsteps">${m.q.map((q, i) => `<li><b>${fmt(q[0])}</b>: ${fmt(q[1])} <span class="lnote">· ${sideCount(i)}/${n} done ·</span> <a href="${url(w.n, m.lv, i + 1)}" target="_blank" rel="noopener">open</a></li>`).join("")}</ul>`
-      : `<p class="goal">${fmt(m.goal)}</p><ol class="tsteps">${m.steps.map((x, i) => `<li>${fmt(x)}${m.t === "h" && m.keys[i] ? ` <span class="auto">checked by the board</span>` : ""}</li>`).join("")}</ol>${m.win ? `<p class="win"><b>Win condition:</b> ${fmt(m.win)}</p>` : ""}${m.t === "h" ? `<p class="lnote">Board trial: needs a micro:bit connected in Chrome or Edge. Bonus, doesn't count for badges or pace.</p>` : `<a class="go" href="${url(w.n, m.lv)}" target="_blank" rel="noopener">Open this level in Code.org →</a>`}`;
-    const who = m.t === "s" ? "" : `<details class="who-done"><summary>Who's finished</summary><p><b>Done (${done.length}):</b> ${names(done)}</p>${started.length ? `<p><b>Started (${started.length}):</b> ${names(started)}</p>` : ""}${skip.length ? `<p><b>Skipped (${skip.length}):</b> ${names(skip)}</p>` : ""}<p><b>Not started (${none.length}):</b> ${names(none)}</p></details>`;
-    return `<article class="m open${m.t === "b" ? " boss" : ""}"><div class="mh" style="cursor:default"><span class="num">${k + 1}</span><span><span class="mt">${fmt(m.title)}</span><span class="mk"><span class="tag ${T2[0]}">${T2[1]}</span><span>${m.t === "h" ? "Board trial · bonus" : "Code.org Lesson " + w.n + ", Level " + m.lv}</span></span></span><span class="xp">${m.t === "s" ? "+" + XP.s + " each" : "+" + XP[m.t] + " XP"}</span></div>
-      <div class="mb">${m.t !== "s" && n ? `<div class="row" style="margin-bottom:8px"><span class="chip ahead">${done.length}/${n} done</span>${started.length ? `<span class="chip">${started.length} started</span>` : ""}${skip.length ? `<span class="chip">${skip.length} skipped</span>` : ""}</div>` : ""}${body}${n ? who : ""}</div></article>`;
-  };
-  el.innerHTML = `<nav class="strip" style="margin:0 calc(-1 * max(4vw,16px));" aria-label="Worlds">${W.map((x) => { const c = coreOf(x), cleared = kids.filter((s) => clearedForPace(s.progress, x.n)).length; return `<button class="pad${x.n === w.n ? " on" : ""}" data-lw="${x.n}" type="button"><span class="n">World ${x.n}</span><span class="t">${esc(x.g)}</span><span class="due">${n ? `${cleared}/${n} cleared` : `${c.length} missions`}</span><span class="fill"><i style="width:${n ? (100 * cleared) / n : 0}%"></i></span></button>`; }).join("")}</nav>
-  <div class="wh" style="margin-top:14px"><div class="row"><h2>World ${w.n}: ${esc(w.g)}</h2><span class="sp"></span><button class="btn small" id="lprev" type="button">← World ${(w.n + 16) % 17}</button><button class="btn small" id="lnext" type="button">World ${(w.n + 1) % 17} →</button></div>
-    <p class="orig">Code.org Lesson ${w.n}: ${esc(w.o)} · ${coreOf(w).length} core missions · badge: ${esc(w.bd)} · planned for week ${weekOfDay(sp.first)}${weekOfDay(sp.last) !== weekOfDay(sp.first) ? "–" + weekOfDay(sp.last) : ""}, class days ${sp.first}–${sp.last}${P ? ", due " + esc(niceDate(P.due(w.n))) : ""}${D.locks?.includes("w" + w.n) ? " · locked for this class" : ""}</p></div>
-  <p class="qotd"><b>Quest question:</b> ${esc(w.q)}</p><p class="story">${fmt(w.s)}</p>
-  <div class="missions">${w.m.map(card).join("")}</div>`;
-  const go2 = (k) => { T.lw = (k + 17) % 17; tabLessons(el, D); el.scrollIntoView({ block: "start" }); };
-  $$("[data-lw]", el).forEach((b) => (b.onclick = () => go2(+b.dataset.lw)));
-  $("lprev").onclick = () => go2(w.n - 1); $("lnext").onclick = () => go2(w.n + 1);
+  const pads = STOPS.map((x, k) => {
+    if (x.kind === "b") { const beat = kids.filter((s) => bossDefeated(s.progress, x.b.id)).length; return `<button class="pad bosspad${k === T.ls ? " on" : ""}" data-ls="${k}" type="button"><span class="n">Boss ${x.b.n}</span><span class="t">${esc(x.b.name)}</span><span class="due">${n ? `${beat}/${n} beaten` : "test + build"}</span><span class="fill"><i style="width:${n ? (100 * beat) / n : 0}%"></i></span></button>`; }
+    const cleared = kids.filter((s) => clearedForPace(s.progress, x.w.n)).length;
+    return `<button class="pad${k === T.ls ? " on" : ""}" data-ls="${k}" type="button"><span class="n">World ${x.w.n}</span><span class="t">${esc(x.w.g)}</span><span class="due">${n ? `${cleared}/${n} cleared` : `${coreOf(x.w).length} missions`}</span><span class="fill"><i style="width:${n ? (100 * cleared) / n : 0}%"></i></span></button>`;
+  }).join("");
+  const prevNext = `<button class="btn small" id="lprev" type="button">← Back</button><button class="btn small" id="lnext" type="button">Next →</button>`;
+  let main;
+  if (stop.kind === "b") {
+    const b = stop.b, bm = b.buildMission, key = T.keys?.[b.id];
+    const takers = kids.filter((s) => bossInfo(s.progress, b.id).attempts);
+    const pct = (i) => takers.length ? Math.round((100 * takers.filter((s) => bossInfo(s.progress, b.id).correct[i]).length) / takers.length) : null;
+    const buildDone = kids.filter((s) => s.progress[bm.id]?.status === "done");
+    main = `<div class="wh" style="margin-top:14px"><div class="row"><h2>Boss ${b.n}: ${esc(b.name)}</h2><span class="sp"></span>${prevNext}</div>
+      <p class="orig">Test on Worlds ${b.worlds[0]}–${b.worlds.at(-1)} · boss day = class day ${BOSS_SPANS[b.id].first} (week ${weekOfDay(BOSS_SPANS[b.id].first)})${P ? ", " + esc(niceDate(P.dates[BOSS_SPANS[b.id].first - 1])) : ""} · pass = 9 of 12 + build done${D.locks?.includes(b.id) ? " · locked for this class" : ""}</p></div>
+      <p class="story">${esc(b.story)}</p>
+      <div class="panel scroll"><h2>Results</h2>${n ? `<table><thead><tr><th>Student</th><th class="nr">Best</th><th class="nr">Tries</th><th>Build</th><th>Status</th><th></th></tr></thead><tbody>${kids.map((s) => { const bi = bossInfo(s.progress, b.id); return `<tr><td>${whoHTML(s)}</td><td class="nr">${bi.best != null ? bi.best + "/" + bi.total : "–"}</td><td class="nr">${bi.attempts || ""}</td><td>${s.progress[bm.id]?.status === "done" ? "Done" : (s.progress[bm.id]?.steps?.length || 0) + "/" + bm.steps.length}</td><td>${bossDefeated(s.progress, b.id) ? `<span class="chip ahead">Beaten</span>` : bi.retake ? `<span class="chip">Retake allowed</span>` : bi.attempts ? `<span class="chip behind">Not beaten</span>` : ""}</td><td>${bi.attempts && !bi.retake && !bossDefeated(s.progress, b.id) ? `<button class="btn small" data-retake="${esc(s.id)}" type="button">Allow retake</button>` : ""}</td></tr>`; }).join("")}</tbody></table>` : `<p class="lnote">No students yet.</p>`}</div>
+      <article class="m boss open"><div class="mh" style="cursor:default"><span class="num">1</span><span><span class="mt">Part 1 · Build: ${esc(bm.title)}</span><span class="mk"><span class="tag tb">Boss build</span><span>${buildDone.length}/${n} done</span></span></span></div>
+        <div class="mb"><p class="goal">${fmt(bm.goal)}</p><ol class="tsteps">${bm.steps.map((x) => `<li>${fmt(x)}</li>`).join("")}</ol><p class="win"><b>Win condition:</b> ${fmt(bm.win)}</p></div></article>
+      <article class="m boss open"><div class="mh" style="cursor:default"><span class="num">2</span><span><span class="mt">Part 2 · Test with answer key</span><span class="mk"><span class="tag tb">Boss test</span><span>${takers.length}/${n} taken · % = share of takers who got it right</span></span></span></div>
+        <div class="mb"><ol class="tsteps keyq">${b.questions.map((q, i) => `<li><b>${esc(q[0])}</b>${pct(i) != null ? ` <span class="chip${pct(i) < 60 ? " behind" : " ahead"}">${pct(i)}% right</span>` : ""}<ul>${q[1].map((c, j) => `<li class="${key && key[i] === j ? "correct" : ""}">${esc(c)}${key && key[i] === j ? " ✓ correct" : ""}</li>`).join("")}</ul></li>`).join("")}</ol>
+        ${key ? "" : `<p class="lnote">Loading the answer key…</p>`}</div></article>`;
+  } else {
+    const w = stop.w, sp = SPANS[w.n];
+    const st = (m, s) => s.progress[m.id]?.status;
+    const card = (m, k) => {
+      const T2 = TAG[m.t];
+      const done = kids.filter((s) => st(m, s) === "done"), skip = kids.filter((s) => st(m, s) === "skipped"), started = kids.filter((s) => st(m, s) === "started"), none = kids.filter((s) => !st(m, s));
+      const sideCount = (i) => kids.filter((s) => s.progress[m.id]?.steps?.includes(i)).length;
+      const body = m.t === "s"
+        ? `<p class="goal">Optional Code.org practice; students pick any. Each one earns ${XP.s} XP.</p><ul class="tsteps">${m.q.map((q, i) => `<li><b>${fmt(q[0])}</b>: ${fmt(q[1])} <span class="lnote">· ${sideCount(i)}/${n} done ·</span> <a href="${url(w.n, m.lv, i + 1)}" target="_blank" rel="noopener">open</a></li>`).join("")}</ul>`
+        : `${m.t === "d" ? `<p class="lnote">Unlocks for a student once they clear this world's core missions.</p>` : ""}<p class="goal">${fmt(m.goal)}</p><ol class="tsteps">${m.steps.map((x, i) => `<li>${fmt(x)}${m.t === "h" && m.keys[i] ? ` <span class="auto">checked by the board</span>` : ""}</li>`).join("")}</ol>${m.win ? `<p class="win"><b>Win condition:</b> ${fmt(m.win)}</p>` : ""}${m.t === "h" ? `<p class="lnote">Board trial: needs a micro:bit connected in Chrome or Edge. Bonus, doesn't count for badges or pace.</p>` : m.t === "d" ? "" : `<a class="go" href="${url(w.n, m.lv)}" target="_blank" rel="noopener">Open this level in Code.org →</a>`}`;
+      const who = m.t === "s" ? "" : `<details class="who-done"><summary>Who's finished</summary><p><b>Done (${done.length}):</b> ${names(done)}</p>${started.length ? `<p><b>Started (${started.length}):</b> ${names(started)}</p>` : ""}${skip.length ? `<p><b>Skipped (${skip.length}):</b> ${names(skip)}</p>` : ""}<p><b>Not started (${none.length}):</b> ${names(none)}</p></details>`;
+      return `<article class="m open${m.t === "b" ? " boss" : ""}${m.t === "d" ? " dive" : ""}"><div class="mh" style="cursor:default"><span class="num">${k + 1}</span><span><span class="mt">${fmt(m.title)}</span><span class="mk"><span class="tag ${T2[0]}">${T2[1]}</span><span>${m.t === "h" ? "Board trial · bonus" : m.t === "d" ? "Side quest for early finishers" : "Code.org Lesson " + w.n + ", Level " + m.lv}</span></span></span><span class="xp">${m.t === "s" ? "+" + XP.s + " each" : "+" + XP[m.t] + " XP"}</span></div>
+        <div class="mb">${m.t !== "s" && n ? `<div class="row" style="margin-bottom:8px"><span class="chip ahead">${done.length}/${n} done</span>${started.length ? `<span class="chip">${started.length} started</span>` : ""}${skip.length ? `<span class="chip">${skip.length} skipped</span>` : ""}</div>` : ""}${body}${n ? who : ""}</div></article>`;
+    };
+    main = `<div class="wh" style="margin-top:14px"><div class="row"><h2>World ${w.n}: ${esc(w.g)}</h2><span class="sp"></span>${prevNext}</div>
+      <p class="orig">Code.org Lesson ${w.n}: ${esc(w.o)} · ${coreOf(w).length} core missions · badge: ${esc(w.bd)} · planned for week ${weekOfDay(sp.first)}${weekOfDay(sp.last) !== weekOfDay(sp.first) ? "–" + weekOfDay(sp.last) : ""}, class days ${sp.first}–${sp.last}${P ? ", due " + esc(niceDate(P.due(w.n))) : ""}${D.locks?.includes("w" + w.n) ? " · locked for this class" : ""}</p></div>
+      <p class="qotd"><b>Quest question:</b> ${esc(w.q)}</p><p class="story">${fmt(w.s)}</p>
+      <div class="missions">${w.m.map(card).join("")}</div>`;
+  }
+  el.innerHTML = `<nav class="strip" style="margin:0 calc(-1 * max(4vw,16px));" aria-label="Worlds and bosses">${pads}</nav>${main}`;
+  const go2 = (k) => { T.ls = (k + STOPS.length) % STOPS.length; tabLessons(el, D); el.scrollIntoView({ block: "start" }); };
+  $$("[data-ls]", el).forEach((b) => (b.onclick = () => go2(+b.dataset.ls)));
+  $("lprev").onclick = () => go2(T.ls - 1); $("lnext").onclick = () => go2(T.ls + 1);
   $$("[data-stu]", el).forEach((b) => (b.onclick = () => studentDrawer(b.dataset.stu)));
-  el.querySelector(`.pad[data-lw="${w.n}"]`)?.scrollIntoView({ block: "nearest", inline: "center" });
+  $$("[data-retake]", el).forEach((b) => (b.onclick = () => allowRetake(b.dataset.retake, stop.b.id, () => tabLessons(el, T.data))));
+  el.querySelector(`.pad[data-ls="${T.ls}"]`)?.scrollIntoView({ block: "nearest", inline: "center" });
+  if (stop.kind === "b" && !T.keys) bossKeys().then(() => { if (T.tab === "lessons") tabLessons(el, T.data); });
+}
+async function allowRetake(studentId, bossId, after) {
+  try { await api("POST", `/api/mq/teacher/students/${encodeURIComponent(studentId)}/retake`, { boss: bossId }); toast("Retake allowed. Their best score is kept."); await loadTeacher(); after?.(); }
+  catch (e) { toast(errText(e)); }
 }
 function tabPacing(el, D) {
   if (allMode()) {
@@ -473,7 +570,7 @@ function tabPacing(el, D) {
   const behind = paces.filter((x) => x.p.behind.length);
   const weeks = P ? Array.from({ length: 9 }, (_, i) => i + 1) : [];
   el.innerHTML = `<div class="panel"><h2>Class calendar</h2>
-    <p class="lnote">9 weeks of daily classes: weeks 1–8 cover the 17 lessons (40 class days), week 9 is a 5-day buffer. Add holidays and other days with no class; the plan moves later to match.</p>
+    <p class="lnote">9 weeks of daily classes: weeks 1–8 cover the 17 lessons and a boss test at the end of weeks 2, 4, 6 and 8 (40 class days); week 9 is a 5-day buffer. Add holidays and other days with no class; the plan moves later to match.</p>
     <div class="row" style="margin-top:10px;align-items:end">
       <label class="f">First class day<input class="t" type="date" id="pstart" value="${esc(dr.start)}"></label>
       <label class="f">Day off<input class="t" type="date" id="poff1"></label><button class="btn" id="poffadd" type="button">Add day off</button>
@@ -485,7 +582,7 @@ function tabPacing(el, D) {
     <p>${D.students.length ? `${paces.length - behind.length} of ${paces.length} students on track.${behind.length ? " Behind: " + behind.map((x) => `${esc(x.s.name)} (${x.p.behind.length})`).join(", ") + "." : ""}` : "No students yet."}</p></div>
   <div class="panel scroll"><h2>Week by week</h2><table><thead><tr><th>Week</th><th>Dates</th><th>Worlds (due date)</th></tr></thead><tbody>
     ${weeks.map((wk) => { const a = P.dates[(wk - 1) * 5], b = P.dates[wk * 5 - 1]; const cur = P.day && weekOfDay(Math.min(P.day, TOTAL_DAYS)) === wk && P.today <= P.dates.at(-1);
-      return `<tr class="${cur ? "now" : ""}"><td><b>Week ${wk}</b>${cur ? ` <span class="chip ahead">this week</span>` : ""}</td><td style="white-space:nowrap">${esc(niceDate(a))} – ${esc(niceDate(b))}</td><td>${wk === 9 ? "Buffer: catch-up, project polish, Post-Project Test, showcase, survey" : weekWorlds(wk).map((n) => `World ${n}: ${esc(W[n].o)}${SPANS[n].last <= wk * 5 ? ` <span class="lnote">(due ${esc(niceDate(P.due(n)))})</span>` : ` <span class="lnote">(continues)</span>`}`).join("<br>")}</td></tr>`; }).join("")}
+      return `<tr class="${cur ? "now" : ""}"><td><b>Week ${wk}</b>${cur ? ` <span class="chip ahead">this week</span>` : ""}</td><td style="white-space:nowrap">${esc(niceDate(a))} – ${esc(niceDate(b))}</td><td>${wk === 9 ? "Buffer: catch-up, project polish, Post-Project Test, showcase, survey" : weekWorlds(wk).map((n) => `World ${n}: ${esc(W[n].o)}${SPANS[n].last <= wk * 5 ? ` <span class="lnote">(due ${esc(niceDate(P.due(n)))})</span>` : ` <span class="lnote">(continues)</span>`}`).concat(weekBosses(wk).map((b) => `<b>Boss ${b.n} test: ${esc(b.name)}</b> <span class="lnote">(${esc(niceDate(P.dates[BOSS_SPANS[b.id].first - 1]))}, Worlds ${b.worlds[0]}–${b.worlds.at(-1)})</span>`)).join("<br>")}</td></tr>`; }).join("")}
   </tbody></table></div>` : `<p class="panel">Pick the first class day to see the 9-week calendar with real dates.</p>`}`;
   const redraw = () => tabPacing(el, D);
   $("pstart").onchange = (e) => { dr.start = e.target.value; redraw(); };
@@ -636,8 +733,8 @@ async function tabClasses(el) {
 }
 function tabControls(el, D) {
   if (allMode()) { el.innerHTML = `<div class="panel"><h2>Controls</h2><p>Pick one class at the top to lock or unlock its worlds.</p></div>`; return; }
-  el.innerHTML = `<div class="panel"><h2>Lock worlds</h2><p class="lnote">Students in ${esc(classNames()[D.classId] || "this class")} can read a locked world but can't tick off its missions.</p>
-  <div class="steps" style="margin-top:10px">${W.map((w) => `<label><input type="checkbox" data-lock="w${w.n}"${D.locks.includes("w" + w.n) ? " checked" : ""}><span><b>${esc(worldName(w.n))}</b> <span class="lnote">${esc(w.o)}</span>${D.locks.includes("w" + w.n) ? " · locked" : ""}</span></label>`).join("")}</div></div>`;
+  el.innerHTML = `<div class="panel"><h2>Lock worlds and bosses</h2><p class="lnote">Students in ${esc(classNames()[D.classId] || "this class")} can read a locked world but can't tick off its missions. A locked boss can't be fought until you unlock it (otherwise it opens on boss day or when a student clears its worlds).</p>
+  <div class="steps" style="margin-top:10px">${BOSSES.map((b) => `<label><input type="checkbox" data-lock="${b.id}"${D.locks.includes(b.id) ? " checked" : ""}><span><b>Boss ${b.n}: ${esc(b.name)}</b> <span class="lnote">test on Worlds ${b.worlds[0]}–${b.worlds.at(-1)}. Lock it to hold the test until you're ready.</span>${D.locks.includes(b.id) ? " · locked" : ""}</span></label>`).join("")}${W.map((w) => `<label><input type="checkbox" data-lock="w${w.n}"${D.locks.includes("w" + w.n) ? " checked" : ""}><span><b>${esc(worldName(w.n))}</b> <span class="lnote">${esc(w.o)}</span>${D.locks.includes("w" + w.n) ? " · locked" : ""}</span></label>`).join("")}</div></div>`;
   $$("[data-lock]", el).forEach((c) => (c.onchange = async () => {
     const locks = $$("[data-lock]", el).filter((x) => x.checked).map((x) => x.dataset.lock);
     try { const r = await api("PUT", `/api/mq/teacher/classes/${encodeURIComponent(D.classId)}/locks`, { locks }); T.data.locks = r.locks; tabControls(el, T.data); } catch (e) { toast(errText(e)); }
@@ -654,8 +751,9 @@ async function studentDrawer(id) {
   const cellFor = (x) => { const r = p[x.id], n = stepCount(x), got = r?.steps?.length || 0; const st = r?.status; const cls = st === "done" ? "done" : st === "skipped" ? "skip" : got ? "part" : ""; return `<span class="cell ${cls}" title="${esc(x.title)} · ${st === "done" ? "done" : st === "skipped" ? "skipped" : got + " of " + n + " ticked"}">${mLabel(x)}</span>`; };
   const { el, close } = openModal(`<div class="row">${ava(s, 44)}<div><h2 id="modal-title" style="font-size:26px">${esc(s.name)}</h2><span class="lnote">${esc(s.username)} · ${esc(s.className)} · last seen ${ago(s.lastSeen)}${s.inPyQuest ? " · also in PyQuest" : ""}</span></div><span class="sp"></span><button class="btn small" data-close type="button">Close</button></div>
     <div class="row"><span class="chip">${esc(s.rank)}</span><span class="chip">${s.xp} XP</span><span class="chip">${s.badges.length} badges</span>${(() => { const P = classPace(s.classId); return P ? paceChip(paceOf(p, P.dates, P.today)) : ""; })()}<span class="chip">Working on: ${m ? esc(worldName(m.world) + " · " + m.title) : "everything cleared"}</span></div>
+    <div class="panel"><h3>Boss tests</h3><div class="wlist">${BOSSES.map((b) => { const bi = bossInfo(p, b.id), beat = bossDefeated(p, b.id), bd = p[b.buildMission.id]; return `<div class="wrow"><b>Boss ${b.n}: ${esc(b.name)}</b><div class="row">${bi.best != null ? `<span class="chip${bi.best / bi.total >= 0.7 ? " ahead" : " behind"}">Test ${bi.best}/${bi.total}${bi.attempts > 1 ? " · " + bi.attempts + " tries" : ""}</span>` : `<span class="chip">Test not taken</span>`}<span class="chip">Build ${bd?.status === "done" ? "done" : (bd?.steps?.length || 0) + "/" + b.buildMission.steps.length}</span>${beat ? `<span class="chip ahead">Beaten</span>` : ""}${bi.retake ? `<span class="chip">Retake allowed</span>` : bi.attempts && !beat ? `<button class="btn small" data-rt="${b.id}" type="button">Allow retake</button>` : ""}</div></div>`; }).join("")}</div></div>
     <div class="panel"><h3>Every mission</h3><div class="wlist">${W.map((w) => `<div class="wrow"><b>${esc(worldName(w.n))}${s.badges.includes("w" + w.n) ? " · badge" : ""}</b><div class="cells">${w.m.map(cellFor).join("")}</div></div>`).join("")}</div>
-      <p class="lnote">Green done · gold started · grey skipped. Hover a box for the mission name.</p></div>
+      <p class="lnote">Green done · gold started · grey skipped. Hover a box for the mission name. "Dive" = Deeper Dive side quest.</p></div>
     <div class="panel"><h3>Leave a note</h3><div class="notes">${d.notes.length ? d.notes.map((n) => `<div class="note">${esc(n.body)}<div class="lnote">${n.seen ? "Seen" : "Not seen yet"} · ${ago(n.created_at)}</div></div>`).join("") : `<p class="lnote">No notes yet.</p>`}</div>
       <textarea class="t" id="nt" maxlength="500" style="min-height:70px;margin-top:8px" placeholder="Great job on World 4! Try the Board trial next."></textarea>
       <div class="row" style="margin-top:8px"><select class="t" id="ntw" aria-label="About which world"><option value="general">General</option>${W.map((w) => `<option value="${coreOf(w)[0].id}">${esc(worldName(w.n))}</option>`).join("")}</select><button class="btn pri" id="ntok" type="button">Send note</button></div></div>
@@ -670,6 +768,7 @@ async function studentDrawer(id) {
   $("bok").onclick = async () => { try { await api("POST", `/api/mq/teacher/students/${encodeURIComponent(id)}/bonus`, { amount: +$("bx").value, reason: $("br").value }); again("Bonus given"); } catch (e) { toast(e.message === "bad_amount" ? "Use a number from -100 to 100 (not 0)." : errText(e)); } };
   $("skok").onclick = async () => { try { const r = await api("POST", `/api/mq/teacher/students/${encodeURIComponent(id)}/skip`, { world: $("sk").value }); again(`Skipped ${r.skipped} missions`); } catch (e) { toast(errText(e)); } };
   $("mvok") && ($("mvok").onclick = async () => { try { await api("PUT", `/api/mq/teacher/students/${encodeURIComponent(id)}/class`, { classId: $("mv").value }); again("Moved to " + (N[$("mv").value] || "class")); } catch (e) { toast(errText(e)); } });
+  $$("[data-rt]", el).forEach((b) => (b.onclick = () => allowRetake(id, b.dataset.rt, () => { drawTeacher(); studentDrawer(id); })));
   $("rp").onclick = () => { close(); resetPw(id); };
   $("rm").onclick = () => { close(); removeStudent({ id, name: s.name, inPyQuest: s.inPyQuest }); };
 }
