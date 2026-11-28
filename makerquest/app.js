@@ -175,36 +175,37 @@ async function loadBoard() {
 }
 
 // ---------- the real micro:bit ----------
-// A photo of a real micro:bit (front, LEDs off). Lit LEDs are drawn exactly over the photo's own LEDs,
-// so the board shows each world's icon, scrolls and button presses on real hardware.
+// microbit.org's picture of a real micro:bit V2, front and back side by side (1688×734).
+// Lit LEDs are drawn exactly over the front's own LEDs, so the board shows each world's icon,
+// scrolls and button presses on real hardware. White background, pin holes and notches are made see-through.
 const PHOTO = {
-  src: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/59/Microbit.jpg/960px-Microbit.jpg",
-  page: "https://commons.wikimedia.org/wiki/File:Microbit.jpg",
-  credit: "Photo: Adelaidev2008t, CC BY-SA 4.0, via Wikimedia Commons",
-  license: "https://creativecommons.org/licenses/by-sa/4.0/",
-  // Measured in the 960×720 photo: corner LEDs, row spacing (perspective), buttons, board outline.
-  tl: [410.4, 267.6], tr: [539.2, 274], bl: [402.4, 394.8], br: [536, 399.6], rows: [0, 0.236, 0.484, 0.733, 1],
-  a: [302, 308], b: [642, 324], view: "252 154 446 358",
-  outline: "279,166 661,180 672,183 679,190 681,205 687,499 264,489 263,470 270,220",
+  src: "https://cdn.sanity.io/images/ajwvhvgo/production/69cda3f409b82d272fd8cc2ad9e95d731dbe3865-1688x734.png?w=1400&auto=format",
+  page: "https://microbit.org/get-started/features/overview/",
+  credit: "micro:bit images: Micro:bit Educational Foundation, microbit.org",
+  // Measured in the 1688×734 image.
+  tl: [307.7, 287.7], tr: [540.8, 287.7], bl: [307.7, 519.9], br: [540.8, 519.9],
+  a: [130.6, 389.3], b: [706.7, 389.3],
+  front: { view: "40 50 775 655", clip: '<rect x="53.6" y="84.5" width="748" height="608.5" rx="26"/><rect x="418" y="62" width="126" height="30"/>' },
+  back: { view: "886 50 778 655", clip: '<rect x="900" y="84.5" width="750" height="608.5" rx="26"/><rect x="1220" y="62" width="106" height="30"/>' },
 };
 let photoOk = true;
 const lerp = (p, q, t) => [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t];
-const ledAt = (r, c) => { const u = c / 4, v = PHOTO.rows[r]; return lerp(lerp(PHOTO.tl, PHOTO.tr, u), lerp(PHOTO.bl, PHOTO.br, u), v); };
+const ledAt = (r, c) => lerp(lerp(PHOTO.tl, PHOTO.tr, c / 4), lerp(PHOTO.bl, PHOTO.br, c / 4), r / 4);
 let photoSeq = 0;
-// The photo with the given 5×5 pattern lit. ids: give the A/B buttons ids (clickable) on the main board.
-function photoBoard(icon, { ids = false, label = "micro:bit" } = {}) {
-  const k = "pb" + ++photoSeq, bits = icon.replace(/ /g, "");
+// The micro:bit with the given 5×5 pattern lit (front), or its back. ids: the A/B buttons get ids (clickable).
+function photoBoard(icon, { ids = false, label = "micro:bit", side = "front" } = {}) {
+  const k = "pb" + ++photoSeq, bits = icon.replace(/ /g, ""), S = PHOTO[side];
   let leds = "";
-  for (let r = 0; r < 5; r++) for (let c = 0; c < 5; c++) if (bits[r * 5 + c] === "1") {
+  if (side === "front") for (let r = 0; r < 5; r++) for (let c = 0; c < 5; c++) if (bits[r * 5 + c] === "1") {
     const [x, y] = ledAt(r, c);
-    leds += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="15" fill="#ff2d1a" opacity=".42" filter="url(#${k}g)"/><rect class="lit" x="${(x - 4).toFixed(1)}" y="${(y - 7).toFixed(1)}" width="8" height="14" rx="2" fill="#ff4a30"/><rect x="${(x - 2).toFixed(1)}" y="${(y - 5).toFixed(1)}" width="4" height="10" rx="1.5" fill="#ffd2c4" opacity=".85"/>`;
+    leds += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="24" fill="#ff2d1a" opacity=".45" filter="url(#${k}g)"/><rect class="lit" x="${(x - 6.5).toFixed(1)}" y="${(y - 11).toFixed(1)}" width="13" height="22" rx="3" fill="#ff4a30"/><rect x="${(x - 3).toFixed(1)}" y="${(y - 8).toFixed(1)}" width="6" height="16" rx="2" fill="#ffd2c4" opacity=".85"/>`;
   }
-  const btn = (p, id) => `<circle ${ids ? `id="${id}"` : ""} cx="${p[0]}" cy="${p[1]}" r="30" fill="transparent" stroke="transparent" stroke-width="4" ${ids ? 'style="cursor:pointer"' : ""}/>`;
-  return `<svg class="photo" viewBox="${PHOTO.view}" role="img" aria-label="${esc(label)}" preserveAspectRatio="xMidYMid meet">
-    <defs><clipPath id="${k}c"><polygon points="${PHOTO.outline}"/></clipPath><filter id="${k}g" x="-1" y="-1" width="3" height="3"><feGaussianBlur stdDeviation="6"/></filter></defs>
-    <polygon points="${PHOTO.outline}" fill="#000" opacity=".5" transform="translate(6 10)" filter="url(#${k}g)"/>
-    <image href="${PHOTO.src}" x="0" y="0" width="960" height="720" clip-path="url(#${k}c)" preserveAspectRatio="none"/>
-    <g class="leds">${leds}</g>${btn(PHOTO.a, "btnA")}${btn(PHOTO.b, "btnB")}</svg>`;
+  const btn = (p, id) => `<circle ${ids ? `id="${id}"` : ""} cx="${p[0]}" cy="${p[1]}" r="44" fill="transparent" stroke="transparent" stroke-width="5" ${ids ? 'style="cursor:pointer"' : ""}/>`;
+  return `<svg class="photo" viewBox="${S.view}" role="img" aria-label="${esc(label)}" preserveAspectRatio="xMidYMid meet">
+    <defs><clipPath id="${k}c">${S.clip}</clipPath><filter id="${k}g" x="-1" y="-1" width="3" height="3"><feGaussianBlur stdDeviation="9"/></filter>
+      <filter id="${k}w" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  -10 -10 -10 0 29.5"/></filter></defs>
+    <image href="${PHOTO.src}" x="0" y="0" width="1688" height="734" clip-path="url(#${k}c)" filter="url(#${k}w)" preserveAspectRatio="none"/>
+    <g class="leds">${leds}</g>${side === "front" ? btn(PHOTO.a, "btnA") + btn(PHOTO.b, "btnB") : ""}</svg>`;
 }
 const photoCredit = () => `<a class="credit" href="${PHOTO.page}" target="_blank" rel="noopener">${esc(PHOTO.credit)}</a>`;
 // If the photo can't load (offline, blocked network), fall back to the drawn board everywhere.
@@ -214,10 +215,12 @@ function board(icon, flash) {
   if (photoOk) {
     const s = $("board"); if (!s) return;
     const st = curStop();
-    s.innerHTML = photoBoard(icon, { ids: true, label: "A real micro:bit showing " + (st.kind === "w" ? "World " + st.w.n : "Boss " + st.b.n) + "'s icon. Press A or B to change." });
-    const cap = $("boardcap"); if (cap) cap.innerHTML = `<b>${st.kind === "w" ? "World " + st.w.n : "Boss " + st.b.n}</b> · press A or B to move · ${photoCredit()}`;
+    const back = UI.side === "back", name = st.kind === "w" ? "World " + st.w.n : "Boss " + st.b.n;
+    s.innerHTML = photoBoard(icon, { ids: true, side: back ? "back" : "front", label: back ? "The back of a real micro:bit V2: speaker, processor, accelerometer and compass" : "A real micro:bit showing " + name + "'s icon. Press A or B to change." });
+    const cap = $("boardcap");
+    if (cap) { cap.innerHTML = `<b>${name}</b> · ${back ? "the back: speaker, processor, accelerometer, compass" : "press A or B to move"} · <button class="btn small" id="flip" type="button">${back ? "Show front" : "Flip to back"}</button><br>${photoCredit()}`; $("flip").onclick = () => { UI.side = back ? "front" : "back"; saveUI(); board(stopIcon(curStop()), false); }; }
     s.classList.remove("flash"); if (flash) { void s.getBoundingClientRect(); s.classList.add("flash"); }
-    $("btnA").onclick = () => go(UI.cur - 1); $("btnB").onclick = () => go(UI.cur + 1);
+    if ($("btnA")) { $("btnA").onclick = () => go(UI.cur - 1); $("btnB").onclick = () => go(UI.cur + 1); }
     watchPhoto(s); paintBtns();
     return;
   }
