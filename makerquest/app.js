@@ -364,7 +364,7 @@ document.addEventListener("keydown", (e) => { if (!ME || !$("strip") || !$("moda
 // Teacher dashboard
 // =====================================================================
 const T = { classId: store.get("mq-teacher-class") || "", tab: "progress", data: null, at: 0, showPw: false, pw: null, me: null, sort: "name" };
-const TABS = [["progress", "Progress"], ["pacing", "Pacing"], ["allwork", "All work"], ["mastery", "Mastery"], ["hardware", "Board trials"], ["students", "Students"], ["classes", "Classes"], ["controls", "Controls"], ["leaderboard", "Leaderboard"]];
+const TABS = [["progress", "Progress"], ["lessons", "Lessons"], ["pacing", "Pacing"], ["allwork", "All work"], ["mastery", "Mastery"], ["hardware", "Board trials"], ["students", "Students"], ["classes", "Classes"], ["controls", "Controls"], ["leaderboard", "Leaderboard"]];
 const allMode = () => T.data?.classId === "all";
 const classNames = () => Object.fromEntries((T.data?.classes || []).map((c) => [c.id, c.name]));
 const nStu = (n) => n + (n === 1 ? " student" : " students");
@@ -384,7 +384,7 @@ async function pageTeacher(me) {
   poll = setInterval(async () => {
     const a = $("ago"); if (a) a.textContent = "updated " + Math.round((Date.now() - T.at) / 1000) + "s ago";
     const typing = document.activeElement?.matches?.("input,textarea,select");
-    if (document.visibilityState === "visible" && Date.now() - T.at > 20000 && $("modal").hidden && !typing && !["students", "classes"].includes(T.tab)) { try { await loadTeacher(); drawTeacher(); } catch {} }
+    if (document.visibilityState === "visible" && Date.now() - T.at > 20000 && $("modal").hidden && !typing && !["students", "classes", "lessons", "pacing"].includes(T.tab)) { try { await loadTeacher(); drawTeacher(); } catch {} }
   }, 5000);
 }
 function drawTeacher() {
@@ -404,7 +404,7 @@ function drawTeacher() {
   if (!D.classes.length) return;
   $("cls").onchange = async (e) => { T.classId = e.target.value; T.showPw = false; T.pw = null; await loadTeacher(); drawTeacher(); };
   $$("[data-tab]").forEach((b) => (b.onclick = () => { T.tab = b.dataset.tab; drawTeacher(); }));
-  ({ progress: tabProgress, pacing: tabPacing, allwork: tabAllWork, mastery: tabMastery, hardware: tabHardware, students: tabStudents, classes: tabClasses, controls: tabControls, leaderboard: tabBoard })[T.tab]($("tab"), D);
+  ({ progress: tabProgress, lessons: tabLessons, pacing: tabPacing, allwork: tabAllWork, mastery: tabMastery, hardware: tabHardware, students: tabStudents, classes: tabClasses, controls: tabControls, leaderboard: tabBoard })[T.tab]($("tab"), D);
 }
 function addClass() {
   const { el, close } = openModal(`<h2 id="modal-title">Add a Maker Quest class</h2><label class="f">Class name<input class="t" id="cn" maxlength="40" autofocus placeholder="2Q7P micro:bit"></label><div class="err" id="cnerr" role="alert"></div><div class="row"><button class="btn pri" id="ok" type="button">Create</button><button class="btn" data-close type="button">Cancel</button></div>`, true);
@@ -432,6 +432,35 @@ function tabProgress(el, D) {
   }).join("")}<td>${sp ? paceChip(sp) : `<span class="lnote">no calendar</span>`}</td><td class="nr">${s.xp}</td><td class="nr">${s.badges.length}</td></tr>`; }).join("")}</tbody></table></div>
   <p class="lnote">✓ world cleared · 2/4 core missions done · S skipped with catch-up · – not started · red outline = past its due date in the Pacing calendar. Select a student to see every mission.</p>`;
   $$("[data-stu]", el).forEach((b) => (b.onclick = () => studentDrawer(b.dataset.stu)));
+}
+// Every world and mission as students see it (read-only), with who in the class has finished each one.
+function tabLessons(el, D) {
+  const P = allMode() ? null : paceInfo(D.pacing);
+  if (T.lw == null) T.lw = P && P.day >= 1 && P.day <= CONTENT_DAYS ? weekWorlds(P.week)[0] : 0;
+  const w = W[T.lw], sp = SPANS[w.n], kids = D.students, n = kids.length;
+  const st = (m, s) => s.progress[m.id]?.status;
+  const names = (list) => list.length ? list.map((s) => `<button class="btn small" data-stu="${esc(s.id)}" type="button">${esc(s.name)}</button>`).join(" ") : `<span class="lnote">nobody</span>`;
+  const card = (m, k) => {
+    const T2 = TAG[m.t];
+    const done = kids.filter((s) => st(m, s) === "done"), skip = kids.filter((s) => st(m, s) === "skipped"), started = kids.filter((s) => st(m, s) === "started"), none = kids.filter((s) => !st(m, s));
+    const sideCount = (i) => kids.filter((s) => s.progress[m.id]?.steps?.includes(i)).length;
+    const body = m.t === "s"
+      ? `<p class="goal">Optional bonus levels; students pick any. Each one earns ${XP.s} XP.</p><ul class="tsteps">${m.q.map((q, i) => `<li><b>${fmt(q[0])}</b>: ${fmt(q[1])} <span class="lnote">· ${sideCount(i)}/${n} done ·</span> <a href="${url(w.n, m.lv, i + 1)}" target="_blank" rel="noopener">open</a></li>`).join("")}</ul>`
+      : `<p class="goal">${fmt(m.goal)}</p><ol class="tsteps">${m.steps.map((x, i) => `<li>${fmt(x)}${m.t === "h" && m.keys[i] ? ` <span class="auto">checked by the board</span>` : ""}</li>`).join("")}</ol>${m.win ? `<p class="win"><b>Win condition:</b> ${fmt(m.win)}</p>` : ""}${m.t === "h" ? `<p class="lnote">Board trial: needs a micro:bit connected in Chrome or Edge. Bonus, doesn't count for badges or pace.</p>` : `<a class="go" href="${url(w.n, m.lv)}" target="_blank" rel="noopener">Open this level in Code.org →</a>`}`;
+    const who = m.t === "s" ? "" : `<details class="who-done"><summary>Who's finished</summary><p><b>Done (${done.length}):</b> ${names(done)}</p>${started.length ? `<p><b>Started (${started.length}):</b> ${names(started)}</p>` : ""}${skip.length ? `<p><b>Skipped (${skip.length}):</b> ${names(skip)}</p>` : ""}<p><b>Not started (${none.length}):</b> ${names(none)}</p></details>`;
+    return `<article class="m open${m.t === "b" ? " boss" : ""}"><div class="mh" style="cursor:default"><span class="num">${k + 1}</span><span><span class="mt">${fmt(m.title)}</span><span class="mk"><span class="tag ${T2[0]}">${T2[1]}</span><span>${m.t === "h" ? "Board trial · bonus" : "Code.org Lesson " + w.n + ", Level " + m.lv}</span></span></span><span class="xp">${m.t === "s" ? "+" + XP.s + " each" : "+" + XP[m.t] + " XP"}</span></div>
+      <div class="mb">${m.t !== "s" && n ? `<div class="row" style="margin-bottom:8px"><span class="chip ahead">${done.length}/${n} done</span>${started.length ? `<span class="chip">${started.length} started</span>` : ""}${skip.length ? `<span class="chip">${skip.length} skipped</span>` : ""}</div>` : ""}${body}${n ? who : ""}</div></article>`;
+  };
+  el.innerHTML = `<nav class="strip" style="margin:0 calc(-1 * max(4vw,16px));" aria-label="Worlds">${W.map((x) => { const c = coreOf(x), cleared = kids.filter((s) => clearedForPace(s.progress, x.n)).length; return `<button class="pad${x.n === w.n ? " on" : ""}" data-lw="${x.n}" type="button"><span class="n">World ${x.n}</span><span class="t">${esc(x.g)}</span><span class="due">${n ? `${cleared}/${n} cleared` : `${c.length} missions`}</span><span class="fill"><i style="width:${n ? (100 * cleared) / n : 0}%"></i></span></button>`; }).join("")}</nav>
+  <div class="wh" style="margin-top:14px"><div class="row"><h2>World ${w.n}: ${esc(w.g)}</h2><span class="sp"></span><button class="btn small" id="lprev" type="button">← World ${(w.n + 16) % 17}</button><button class="btn small" id="lnext" type="button">World ${(w.n + 1) % 17} →</button></div>
+    <p class="orig">Code.org Lesson ${w.n}: ${esc(w.o)} · ${coreOf(w).length} core missions · badge: ${esc(w.bd)} · planned for week ${weekOfDay(sp.first)}${weekOfDay(sp.last) !== weekOfDay(sp.first) ? "–" + weekOfDay(sp.last) : ""}, class days ${sp.first}–${sp.last}${P ? ", due " + esc(niceDate(P.due(w.n))) : ""}${D.locks?.includes("w" + w.n) ? " · locked for this class" : ""}</p></div>
+  <p class="qotd"><b>Quest question:</b> ${esc(w.q)}</p><p class="story">${fmt(w.s)}</p>
+  <div class="missions">${w.m.map(card).join("")}</div>`;
+  const go2 = (k) => { T.lw = (k + 17) % 17; tabLessons(el, D); el.scrollIntoView({ block: "start" }); };
+  $$("[data-lw]", el).forEach((b) => (b.onclick = () => go2(+b.dataset.lw)));
+  $("lprev").onclick = () => go2(w.n - 1); $("lnext").onclick = () => go2(w.n + 1);
+  $$("[data-stu]", el).forEach((b) => (b.onclick = () => studentDrawer(b.dataset.stu)));
+  el.querySelector(`.pad[data-lw="${w.n}"]`)?.scrollIntoView({ block: "nearest", inline: "center" });
 }
 function tabPacing(el, D) {
   if (allMode()) {
