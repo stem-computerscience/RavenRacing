@@ -1,6 +1,7 @@
 // Maker Quest app: sign-in, the student game (progress saved to the server) and the teacher dashboard.
 // Talks to the same Cloudflare Worker as PyQuest, under /api/mq/*.
-import { W, XP, TAG, missionById, isCore, coreOf, stepCount, doneFor, rankFor, CONCEPTS, mastery } from "./data.js";
+import { W, XP, TAG, missionById, isCore, coreOf, stepCount, doneFor, rankFor, CONCEPTS, mastery,
+  SPANS, CONTENT_DAYS, TOTAL_DAYS, weekOfDay, classDates, classDayOn, clearedForPace, paceOf, niceDate, todayIso, validIso } from "./data.js";
 
 const API = String(window.MQ_CONFIG?.api || "").replace(/\/$/, "");
 const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} } };
@@ -45,6 +46,14 @@ const online = (ms) => ms && Date.now() - ms < 120e3;
 const WORDS = ["comet", "pixel", "robot", "laser", "rocket", "orbit", "spark", "volt", "nova", "gizmo", "maker", "radar", "turbo", "cobalt", "ember", "quartz"];
 const genPw = () => WORDS[Math.floor(Math.random() * WORDS.length)] + (10 + Math.floor(Math.random() * 90));
 const worldName = (n) => { const w = W.find((x) => x.n === n); return w ? `World ${w.n}: ${w.g}` : ""; };
+// ---------- pacing (9 weeks: 8 of lessons + a buffer week) ----------
+function paceInfo(pacing) {
+  const dates = classDates(pacing); if (!dates) return null;
+  const today = todayIso(), day = classDayOn(dates, today);
+  return { dates, today, day, week: day ? weekOfDay(Math.min(day, TOTAL_DAYS)) : 0, due: (n) => dates[SPANS[n].last - 1] };
+}
+const weekWorlds = (wk) => SPANS.filter((s) => s.last >= (wk - 1) * 5 + 1 && s.first <= wk * 5).map((s) => s.n);
+const paceChip = (p) => (!p ? "" : p.behind.length ? `<span class="chip behind" title="Overdue: ${p.behind.map((n) => "World " + n).join(", ")}">Behind ${p.behind.length}</span>` : p.ahead ? `<span class="chip ahead">Ahead</span>` : `<span class="chip ahead">On track</span>`);
 const mLabel = (m) => (m.t === "h" ? "Trial" : m.t === "s" ? "Side " + m.lv : "L" + m.lv);
 
 // ---------- start ----------
@@ -113,6 +122,7 @@ async function pageStudent(me) {
     </div>
     <div class="xpbar" aria-hidden="true"><i id="xpfill"></i></div>
     <div class="xpnote" id="xpnote"></div>
+    <div class="pacebar" id="pacebar" hidden></div>
   </header>
   <nav class="strip" id="strip" aria-label="Worlds"></nav>
   <main class="band main">
@@ -170,7 +180,9 @@ ${pads}<rect x="10" y="236" width="280" height="4" fill="#0a110e"/>
   $("btnA").onclick = () => go(UI.cur - 1); $("btnB").onclick = () => go(UI.cur + 1);
 }
 function strip() {
-  $("strip").innerHTML = W.map((w, k) => `<button class="pad${k === UI.cur ? " on" : ""}${wDone(w) ? " done" : ""}" data-w="${k}" type="button" aria-label="World ${w.n}: ${esc(w.g)}${locked(w) ? " (locked)" : ""}">${locked(w) ? `<span class="lk">Locked</span>` : ""}<span class="n">World ${w.n}</span><span class="t">${esc(w.g)}</span><span class="fill"><i style="width:${wPct(w)}%"></i></span></button>`).join("");
+  const P = paceInfo(ME.pacing);
+  $("strip").innerHTML = W.map((w, k) => { const due = P?.due(w.n), late = due && due < P.today && !clearedForPace(ME.progress, w.n);
+    return `<button class="pad${k === UI.cur ? " on" : ""}${wDone(w) ? " done" : ""}${late ? " late" : ""}" data-w="${k}" type="button" aria-label="World ${w.n}: ${esc(w.g)}${locked(w) ? " (locked)" : ""}${due ? ", due " + niceDate(due) : ""}${late ? ", overdue" : ""}">${locked(w) ? `<span class="lk">Locked</span>` : ""}<span class="n">World ${w.n}</span><span class="t">${esc(w.g)}</span>${due ? `<span class="due">${late ? "Overdue · " : "Due "}${esc(niceDate(due).replace(/^\w+, /, ""))}</span>` : ""}<span class="fill"><i style="width:${wPct(w)}%"></i></span></button>`; }).join("");
   $$(".pad", $("strip")).forEach((p) => (p.onclick = () => go(+p.dataset.w)));
 }
 function hud() {
@@ -180,6 +192,24 @@ function hud() {
   $("xpfill").style.width = (r.next ? Math.min(100, (100 * (x - r.at)) / (r.next[0] - r.at)) : 100) + "%";
   $("xpnote").textContent = r.next ? (r.next[0] - x).toLocaleString() + " XP to " + r.next[1] : "Top rank reached. Legendary.";
   $("blist").innerHTML = W.map((w) => `<span class="bdg${wDone(w) ? " got" : ""}" title="World ${w.n}">${esc(w.bd)}</span>`).join("");
+  paceBanner();
+}
+function paceBanner() {
+  const el = $("pacebar"), P = paceInfo(ME.pacing);
+  el.hidden = !P; if (!P) return;
+  const pace = paceOf(ME.progress, P.dates, P.today);
+  const next = W.find((w) => !clearedForPace(ME.progress, w.n));
+  let html;
+  if (P.day === 0) html = `<b>Class starts ${esc(niceDate(P.dates[0]))}.</b> Week 1 is Worlds ${weekWorlds(1).join(", ")}.`;
+  else if (P.day > TOTAL_DAYS || (P.day === TOTAL_DAYS && P.today > P.dates.at(-1))) html = `<b>The 9 weeks are done.</b> Nice work, maker.`;
+  else if (P.day > CONTENT_DAYS) html = `<b>Week 9: buffer week.</b> ${pace.behind.length ? `Finish World ${pace.behind.join(", World ")} first, then` : "Polish your final project,"} try Board trials and side quests.`;
+  else {
+    const ww = weekWorlds(P.week);
+    html = `<b>Week ${P.week} of 9</b> · this week: World${ww.length > 1 ? "s" : ""} ${ww.join(", ")}` +
+      (next ? ` · next goal: clear World ${next.n} by ${esc(niceDate(P.due(next.n)))}` : "") +
+      (pace.behind.length ? ` · <span class="late-t">${pace.behind.length} world${pace.behind.length > 1 ? "s" : ""} behind (World ${pace.behind.join(", ")})</span>` : pace.ahead ? " · ahead of schedule" : " · on track");
+  }
+  el.innerHTML = html;
 }
 const url = (w, lv, sub) => "https://studio.code.org/courses/microbit-2026/units/1/lessons/" + (w + 1) + "/levels/" + lv + (sub ? "/sublevel/" + sub : "");
 function mission(m, w, k) {
@@ -194,7 +224,7 @@ function mission(m, w, k) {
 }
 function world() {
   const w = W[UI.cur], c = coreOf(w);
-  $("world").innerHTML = `<div class="wh"><h2>World ${w.n}: ${esc(w.g)}</h2><p class="orig">Code.org Lesson ${w.n}: ${esc(w.o)} · ${c.filter(mDone).length} of ${c.length} missions cleared · badge: ${esc(w.bd)}</p></div>
+  $("world").innerHTML = `<div class="wh"><h2>World ${w.n}: ${esc(w.g)}</h2><p class="orig">Code.org Lesson ${w.n}: ${esc(w.o)} · ${c.filter(mDone).length} of ${c.length} missions cleared · badge: ${esc(w.bd)}${(() => { const P = paceInfo(ME.pacing), sp = SPANS[w.n]; return ` · planned for week ${weekOfDay(sp.first)}${weekOfDay(sp.last) !== weekOfDay(sp.first) ? "–" + weekOfDay(sp.last) : ""} (${sp.last - sp.first + 1} days)${P ? ", due " + esc(niceDate(P.due(w.n))) : ""}`; })()}</p></div>
   ${locked(w) ? `<p class="lockmsg">Your teacher has locked this world for now. You can read the missions, but you can't tick them off yet.</p>` : ""}
   <p class="qotd"><b>Quest question:</b> ${esc(w.q)}</p><p class="story">${fmt(w.s)}</p>
   <div class="legend">${Object.keys(TAG).map((t) => `<span class="tag ${TAG[t][0]}">${TAG[t][1]}</span>`).join("")}</div>
@@ -334,7 +364,7 @@ document.addEventListener("keydown", (e) => { if (!ME || !$("strip") || !$("moda
 // Teacher dashboard
 // =====================================================================
 const T = { classId: store.get("mq-teacher-class") || "", tab: "progress", data: null, at: 0, showPw: false, pw: null, me: null, sort: "name" };
-const TABS = [["progress", "Progress"], ["allwork", "All work"], ["mastery", "Mastery"], ["hardware", "Board trials"], ["students", "Students"], ["classes", "Classes"], ["controls", "Controls"], ["leaderboard", "Leaderboard"]];
+const TABS = [["progress", "Progress"], ["pacing", "Pacing"], ["allwork", "All work"], ["mastery", "Mastery"], ["hardware", "Board trials"], ["students", "Students"], ["classes", "Classes"], ["controls", "Controls"], ["leaderboard", "Leaderboard"]];
 const allMode = () => T.data?.classId === "all";
 const classNames = () => Object.fromEntries((T.data?.classes || []).map((c) => [c.id, c.name]));
 const nStu = (n) => n + (n === 1 ? " student" : " students");
@@ -374,7 +404,7 @@ function drawTeacher() {
   if (!D.classes.length) return;
   $("cls").onchange = async (e) => { T.classId = e.target.value; T.showPw = false; T.pw = null; await loadTeacher(); drawTeacher(); };
   $$("[data-tab]").forEach((b) => (b.onclick = () => { T.tab = b.dataset.tab; drawTeacher(); }));
-  ({ progress: tabProgress, allwork: tabAllWork, mastery: tabMastery, hardware: tabHardware, students: tabStudents, classes: tabClasses, controls: tabControls, leaderboard: tabBoard })[T.tab]($("tab"), D);
+  ({ progress: tabProgress, pacing: tabPacing, allwork: tabAllWork, mastery: tabMastery, hardware: tabHardware, students: tabStudents, classes: tabClasses, controls: tabControls, leaderboard: tabBoard })[T.tab]($("tab"), D);
 }
 function addClass() {
   const { el, close } = openModal(`<h2 id="modal-title">Add a Maker Quest class</h2><label class="f">Class name<input class="t" id="cn" maxlength="40" autofocus placeholder="2Q7P micro:bit"></label><div class="err" id="cnerr" role="alert"></div><div class="row"><button class="btn pri" id="ok" type="button">Create</button><button class="btn" data-close type="button">Cancel</button></div>`, true);
@@ -384,6 +414,8 @@ function addClass() {
     catch (e) { $("cnerr").textContent = errText(e); }
   };
 }
+const classPace = (classId) => paceInfo(T.data?.classes.find((c) => c.id === classId)?.pacing);
+const studentPace = (s) => { const P = classPace(s.class_id); return P ? paceOf(s.progress, P.dates, P.today) : null; };
 const whoHTML = (s) => `<span class="who">${ava(s)}<b>${esc(s.name)}</b>${online(s.last_seen) ? `<span class="dot" title="online"></span>` : ""}</span>`;
 const classOf = (s) => (allMode() ? " · " + esc(classNames()[s.class_id] || "") : "");
 
@@ -391,21 +423,61 @@ function tabProgress(el, D) {
   if (!D.students.length) { el.innerHTML = `<p class="panel">No students yet. Add them in the Students tab.</p>`; return; }
   const quiet = D.students.filter((s) => !s.last_seen || Date.now() - s.last_seen > 7 * 864e5);
   el.innerHTML = `${quiet.length ? `<p class="lockmsg">Not seen in the last 7 days: ${quiet.map((s) => esc(s.name)).join(", ")}</p>` : ""}
-  <div class="panel scroll"><table><thead><tr><th>Student</th>${W.map((w) => `<th title="${esc(worldName(w.n))}${D.locks.includes("w" + w.n) ? " (locked)" : ""}">W${w.n}${D.locks.includes("w" + w.n) ? " 🔒" : ""}</th>`).join("")}<th class="nr">XP</th><th class="nr">Badges</th></tr></thead><tbody>
-  ${D.students.map((s) => `<tr><td><button class="btn small" data-stu="${esc(s.id)}" type="button">${whoHTML(s)}</button><div class="lnote">${esc(rankFor(s.xp).name)}${classOf(s)}${s.inPyQuest ? " · also in PyQuest" : ""}</div></td>${W.map((w) => {
+  <div class="panel scroll"><table><thead><tr><th>Student</th>${W.map((w) => `<th title="${esc(worldName(w.n))}${D.locks.includes("w" + w.n) ? " (locked)" : ""}">W${w.n}${D.locks.includes("w" + w.n) ? " 🔒" : ""}</th>`).join("")}<th>Pace</th><th class="nr">XP</th><th class="nr">Badges</th></tr></thead><tbody>
+  ${D.students.map((s) => { const sp = studentPace(s); return `<tr><td><button class="btn small" data-stu="${esc(s.id)}" type="button">${whoHTML(s)}</button><div class="lnote">${esc(rankFor(s.xp).name)}${classOf(s)}${s.inPyQuest ? " · also in PyQuest" : ""}</div></td>${W.map((w) => {
     const c = wCount(s.progress, w); const cls = c.done === c.n ? "done" : c.done + c.skip === c.n ? "skip" : c.done || c.started || c.skip ? "part" : "";
     const lab = c.done === c.n ? "✓" : c.done + c.skip === c.n ? "S" : c.done || c.started || c.skip ? `${c.done}/${c.n}` : "–";
-    return `<td><span class="cell ${cls}" title="${esc(worldName(w.n))}: ${c.done} of ${c.n} done${c.skip ? ", " + c.skip + " skipped" : ""}">${lab}</span></td>`;
-  }).join("")}<td class="nr">${s.xp}</td><td class="nr">${s.badges.length}</td></tr>`).join("")}</tbody></table></div>
-  <p class="lnote">✓ world cleared · 2/4 core missions done · S skipped with catch-up · – not started. Select a student to see every mission.</p>`;
+    const late = sp?.behind.includes(w.n);
+    return `<td><span class="cell ${cls}${late ? " late" : ""}" title="${esc(worldName(w.n))}: ${c.done} of ${c.n} done${c.skip ? ", " + c.skip + " skipped" : ""}${late ? " · overdue" : ""}">${lab}</span></td>`;
+  }).join("")}<td>${sp ? paceChip(sp) : `<span class="lnote">no calendar</span>`}</td><td class="nr">${s.xp}</td><td class="nr">${s.badges.length}</td></tr>`; }).join("")}</tbody></table></div>
+  <p class="lnote">✓ world cleared · 2/4 core missions done · S skipped with catch-up · – not started · red outline = past its due date in the Pacing calendar. Select a student to see every mission.</p>`;
   $$("[data-stu]", el).forEach((b) => (b.onclick = () => studentDrawer(b.dataset.stu)));
+}
+function tabPacing(el, D) {
+  if (allMode()) {
+    el.innerHTML = `<div class="panel"><h2>Pacing</h2><p>Pick one class at the top to set its calendar.</p><table><thead><tr><th>Class</th><th>Starts</th><th>Last lesson day</th><th>Buffer week ends</th></tr></thead><tbody>${D.classes.map((c) => { const P = paceInfo(c.pacing); return `<tr><td>${esc(c.name)}</td><td>${P ? esc(niceDate(P.dates[0])) : "Not set"}</td><td>${P ? esc(niceDate(P.dates[CONTENT_DAYS - 1])) : ""}</td><td>${P ? esc(niceDate(P.dates.at(-1))) : ""}</td></tr>`; }).join("")}</tbody></table></div>`;
+    return;
+  }
+  if (!T.pdraft || T.pdraft.classId !== D.classId) T.pdraft = { classId: D.classId, start: D.pacing?.start || "", off: [...(D.pacing?.off || [])] };
+  const dr = T.pdraft, P = paceInfo(dr.start ? dr : null), saved = JSON.stringify({ s: D.pacing?.start || "", o: D.pacing?.off || [] }) === JSON.stringify({ s: dr.start, o: [...dr.off].sort() });
+  const paces = P ? D.students.map((s) => ({ s, p: paceOf(s.progress, P.dates, P.today) })) : [];
+  const behind = paces.filter((x) => x.p.behind.length);
+  const weeks = P ? Array.from({ length: 9 }, (_, i) => i + 1) : [];
+  el.innerHTML = `<div class="panel"><h2>Class calendar</h2>
+    <p class="lnote">9 weeks of daily classes: weeks 1–8 cover the 17 lessons (40 class days), week 9 is a 5-day buffer. Add holidays and other days with no class; the plan moves later to match.</p>
+    <div class="row" style="margin-top:10px;align-items:end">
+      <label class="f">First class day<input class="t" type="date" id="pstart" value="${esc(dr.start)}"></label>
+      <label class="f">Day off<input class="t" type="date" id="poff1"></label><button class="btn" id="poffadd" type="button">Add day off</button>
+      <label class="f">Break from<input class="t" type="date" id="pfrom"></label><label class="f">to<input class="t" type="date" id="pto"></label><button class="btn" id="prange" type="button">Add break</button>
+    </div>
+    <div class="row" style="margin-top:10px">${dr.off.length ? [...dr.off].sort().map((d) => `<span class="chip">${esc(niceDate(d))} <button class="btn small" data-rmoff="${esc(d)}" type="button" aria-label="Remove ${esc(niceDate(d))}">×</button></span>`).join("") : `<span class="lnote">No days off yet.</span>`}</div>
+    <div class="row" style="margin-top:12px"><button class="btn pri" id="psave" type="button"${saved ? " disabled" : ""}>${saved ? "Saved" : "Save calendar"}</button>${D.pacing ? `<button class="btn" id="pclear" type="button">Clear calendar</button>` : ""}<span class="err" id="perr"></span></div></div>
+  ${P ? `<div class="panel"><h2>${P.day === 0 ? "Starts " + esc(niceDate(P.dates[0])) : P.day > CONTENT_DAYS ? "Buffer week" : "Today: week " + P.week + ", day " + P.day + " of " + TOTAL_DAYS}</h2>
+    <p>${D.students.length ? `${paces.length - behind.length} of ${paces.length} students on track.${behind.length ? " Behind: " + behind.map((x) => `${esc(x.s.name)} (${x.p.behind.length})`).join(", ") + "." : ""}` : "No students yet."}</p></div>
+  <div class="panel scroll"><h2>Week by week</h2><table><thead><tr><th>Week</th><th>Dates</th><th>Worlds (due date)</th></tr></thead><tbody>
+    ${weeks.map((wk) => { const a = P.dates[(wk - 1) * 5], b = P.dates[wk * 5 - 1]; const cur = P.day && weekOfDay(Math.min(P.day, TOTAL_DAYS)) === wk && P.today <= P.dates.at(-1);
+      return `<tr class="${cur ? "now" : ""}"><td><b>Week ${wk}</b>${cur ? ` <span class="chip ahead">this week</span>` : ""}</td><td style="white-space:nowrap">${esc(niceDate(a))} – ${esc(niceDate(b))}</td><td>${wk === 9 ? "Buffer: catch-up, project polish, Post-Project Test, showcase, survey" : weekWorlds(wk).map((n) => `World ${n}: ${esc(W[n].o)}${SPANS[n].last <= wk * 5 ? ` <span class="lnote">(due ${esc(niceDate(P.due(n)))})</span>` : ` <span class="lnote">(continues)</span>`}`).join("<br>")}</td></tr>`; }).join("")}
+  </tbody></table></div>` : `<p class="panel">Pick the first class day to see the 9-week calendar with real dates.</p>`}`;
+  const redraw = () => tabPacing(el, D);
+  $("pstart").onchange = (e) => { dr.start = e.target.value; redraw(); };
+  $("poffadd").onclick = () => { const v = $("poff1").value; if (validIso(v) && !dr.off.includes(v)) dr.off.push(v); redraw(); };
+  $("prange").onclick = () => { const a = $("pfrom").value, b = $("pto").value; if (!validIso(a) || !validIso(b) || b < a) { $("perr").textContent = "Pick a start and end date."; return; }
+    for (let t = Date.parse(a + "T00:00:00Z"); t <= Date.parse(b + "T00:00:00Z") && dr.off.length < 150; t += 864e5) { const d = new Date(t), iso = d.toISOString().slice(0, 10); if (d.getUTCDay() % 6 && !dr.off.includes(iso)) dr.off.push(iso); }
+    redraw(); };
+  $$("[data-rmoff]", el).forEach((b) => (b.onclick = () => { dr.off = dr.off.filter((d) => d !== b.dataset.rmoff); redraw(); }));
+  $("psave").onclick = async () => {
+    if (!validIso(dr.start)) { $("perr").textContent = "Pick the first class day."; return; }
+    try { const r = await api("PUT", `/api/mq/teacher/classes/${encodeURIComponent(D.classId)}/pacing`, { start: dr.start, off: dr.off }); dr.off = r.pacing.off; await loadTeacher(); drawTeacher(); toast("Calendar saved"); }
+    catch (e) { $("perr").textContent = errText(e); }
+  };
+  $("pclear") && ($("pclear").onclick = async () => { try { await api("PUT", `/api/mq/teacher/classes/${encodeURIComponent(D.classId)}/pacing`, { start: null }); T.pdraft = null; await loadTeacher(); drawTeacher(); toast("Calendar cleared"); } catch (e) { toast(errText(e)); } });
 }
 function tabAllWork(el, D) {
   const list = [...D.students].sort((a, b) => T.sort === "saved" ? savedAt(b) - savedAt(a) : T.sort === "xp" ? b.xp - a.xp : a.name.localeCompare(b.name));
   el.innerHTML = `<div class="row"><h2 style="font-size:22px">All work (${list.length})</h2><span class="sp"></span><label class="row" style="font-weight:700">Sort by <select class="t" id="ws"><option value="name">Name</option><option value="saved">Last saved</option><option value="xp">XP</option></select></label></div>
   ${list.length ? "" : `<p class="panel">No students yet.</p>`}
   <div class="cards">${list.map((s) => { const m = workingOn(s.progress), trials = W.flatMap((w) => w.m.filter((x) => x.t === "h")).filter((x) => s.progress[x.id]?.status === "done").length; return `<article class="card">
-    <div class="row">${whoHTML(s)}<span class="sp"></span><span class="chip">${s.xp} XP</span></div>
+    <div class="row">${whoHTML(s)}<span class="sp"></span>${paceChip(studentPace(s))}<span class="chip">${s.xp} XP</span></div>
     <div class="lnote">${esc(rankFor(s.xp).name)}${classOf(s)} · last saved ${ago(savedAt(s))}</div>
     <div class="mini" aria-label="World progress">${W.map((w) => { const c = wCount(s.progress, w); return `<i class="${c.done === c.n ? "d" : c.done || c.started ? "p" : ""}" title="${esc(worldName(w.n))}"></i>`; }).join("")}</div>
     <div><b>Working on:</b> ${m ? esc(worldName(m.world) + " · " + m.title) : "Everything cleared!"}</div>
@@ -552,7 +624,7 @@ async function studentDrawer(id) {
   const s = d.student, p = d.progress, m = workingOn(p), N = classNames();
   const cellFor = (x) => { const r = p[x.id], n = stepCount(x), got = r?.steps?.length || 0; const st = r?.status; const cls = st === "done" ? "done" : st === "skipped" ? "skip" : got ? "part" : ""; return `<span class="cell ${cls}" title="${esc(x.title)} · ${st === "done" ? "done" : st === "skipped" ? "skipped" : got + " of " + n + " ticked"}">${mLabel(x)}</span>`; };
   const { el, close } = openModal(`<div class="row">${ava(s, 44)}<div><h2 id="modal-title" style="font-size:26px">${esc(s.name)}</h2><span class="lnote">${esc(s.username)} · ${esc(s.className)} · last seen ${ago(s.lastSeen)}${s.inPyQuest ? " · also in PyQuest" : ""}</span></div><span class="sp"></span><button class="btn small" data-close type="button">Close</button></div>
-    <div class="row"><span class="chip">${esc(s.rank)}</span><span class="chip">${s.xp} XP</span><span class="chip">${s.badges.length} badges</span><span class="chip">Working on: ${m ? esc(worldName(m.world) + " · " + m.title) : "everything cleared"}</span></div>
+    <div class="row"><span class="chip">${esc(s.rank)}</span><span class="chip">${s.xp} XP</span><span class="chip">${s.badges.length} badges</span>${(() => { const P = classPace(s.classId); return P ? paceChip(paceOf(p, P.dates, P.today)) : ""; })()}<span class="chip">Working on: ${m ? esc(worldName(m.world) + " · " + m.title) : "everything cleared"}</span></div>
     <div class="panel"><h3>Every mission</h3><div class="wlist">${W.map((w) => `<div class="wrow"><b>${esc(worldName(w.n))}${s.badges.includes("w" + w.n) ? " · badge" : ""}</b><div class="cells">${w.m.map(cellFor).join("")}</div></div>`).join("")}</div>
       <p class="lnote">Green done · gold started · grey skipped. Hover a box for the mission name.</p></div>
     <div class="panel"><h3>Leave a note</h3><div class="notes">${d.notes.length ? d.notes.map((n) => `<div class="note">${esc(n.body)}<div class="lnote">${n.seen ? "Seen" : "Not seen yet"} · ${ago(n.created_at)}</div></div>`).join("") : `<p class="lnote">No notes yet.</p>`}</div>

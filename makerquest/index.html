@@ -190,6 +190,17 @@ td.nr,th.nr{text-align:right;font-variant-numeric:tabular-nums;white-space:nowra
 .wlist{display:grid;gap:8px}
 .wrow{display:grid;grid-template-columns:minmax(0,220px) minmax(0,1fr);gap:10px;align-items:start;padding:8px 0;border-bottom:1px solid var(--edge)}
 .wrow .cells{display:flex;flex-wrap:wrap;gap:4px}
+.pacebar{grid-column:1/-1;padding:10px 14px;border-radius:10px;background:#0a110e;border:1px solid var(--edge);font-size:15px}
+.pacebar b{color:var(--gold2)}
+.late-t{color:#ffb4a8;font-weight:700}
+.pad .due{font-size:12.5px;color:var(--mute)}
+.pad.late{border-color:var(--led)}
+.pad.late .due{color:#ffb4a8;font-weight:700}
+.cell.late{outline:2px solid var(--led);outline-offset:1px}
+.chip.behind{border-color:var(--led);color:#ffb4a8;font-weight:700}
+.chip.ahead{border-color:#3e6b55;color:var(--ok)}
+tr.now td{background:#1b2c25}
+.btn:disabled{opacity:.6;cursor:default}
 #printcards{display:none}
 @media print{body>*:not(#printcards){display:none!important}#printcards{display:grid!important;grid-template-columns:1fr 1fr;gap:0;color:#000;background:#fff}
 .pcard{border:1px dashed #999;padding:14px 16px;display:grid;gap:6px;break-inside:avoid;height:2.4in;font:14px/1.3 system-ui,sans-serif}.pcard .w{font-size:20px;font-weight:800}.pcard code{font:700 22px/1.2 ui-monospace,monospace;background:none;border:0;color:#000;padding:0}}

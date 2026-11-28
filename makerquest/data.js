@@ -207,3 +207,49 @@ export function mastery(progress) {
   }
   return out;
 }
+
+// ---------- 9-week pacing ----------
+// Class meets every school day. Weeks 1-8 = 40 content days for the 17 lessons, week 9 = 5 buffer days.
+// PACE_DAYS[n] = class days planned for World n (Code.org Lesson n). Projects get the most.
+export const PACE_DAYS = [2, 2, 2, 2, 2, 3, 2, 2, 2, 4, 2, 2, 3, 2, 2, 2, 4];
+export const CONTENT_DAYS = PACE_DAYS.reduce((a, b) => a + b, 0); // 40
+export const BUFFER_DAYS = 5;
+export const TOTAL_DAYS = CONTENT_DAYS + BUFFER_DAYS; // 45 = 9 weeks
+// First and last class day (1-based) of each world.
+export const SPANS = PACE_DAYS.reduce((acc, d, n) => { const first = n ? acc[n - 1].last + 1 : 1; acc.push({ n, first, last: first + d - 1 }); return acc; }, []);
+export const weekOfDay = (day) => Math.ceil(day / 5);
+const ISO = /^\d{4}-\d{2}-\d{2}$/;
+export const validIso = (s) => typeof s === "string" && ISO.test(s) && !Number.isNaN(Date.parse(s + "T00:00:00Z"));
+// The calendar date of every class day: weekdays from the start date, skipping days off. dates[0] = day 1.
+export function classDates(pacing) {
+  if (!pacing || !validIso(pacing.start)) return null;
+  const off = new Set((pacing.off || []).filter(validIso));
+  const out = [];
+  let t = Date.parse(pacing.start + "T00:00:00Z");
+  for (let guard = 0; out.length < TOTAL_DAYS && guard < 400; guard++, t += 864e5) {
+    const d = new Date(t), iso = d.toISOString().slice(0, 10), wd = d.getUTCDay();
+    if (wd !== 0 && wd !== 6 && !off.has(iso)) out.push(iso);
+  }
+  return out;
+}
+// Where the class is today: day 0 = not started, 1..45 = that class day (or the last one before a day off), 46 = term over.
+export function classDayOn(dates, today) {
+  if (!dates) return null;
+  let day = 0;
+  for (const d of dates) if (d <= today) day++;
+  return day;
+}
+// Worlds whose last planned day is before today: they should be cleared by now.
+export const dueWorlds = (dates, today) => (dates ? SPANS.filter((s) => dates[s.last - 1] < today).map((s) => s.n) : []);
+// A world counts as cleared for pacing when every core mission is done or skipped by the teacher.
+export const clearedForPace = (progress, n) => coreOf(W.find((w) => w.n === n)).every((m) => ["done", "skipped"].includes(progress[m.id]?.status));
+export function paceOf(progress, dates, today) {
+  if (!dates) return null;
+  const due = dueWorlds(dates, today);
+  const behind = due.filter((n) => !clearedForPace(progress, n));
+  const cleared = W.filter((w) => clearedForPace(progress, w.n)).length;
+  return { due: due.length, behind, ahead: !behind.length && cleared > due.length };
+}
+// Pretty date: "Mon Dec 7".
+export const niceDate = (iso) => { const d = new Date(iso + "T00:00:00Z"); return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" }); };
+export const todayIso = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
