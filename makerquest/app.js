@@ -86,7 +86,7 @@ async function signOut() {
 function pageLogin(msg = "") {
   clearInterval(poll);
   app.innerHTML = `<div class="loginwrap"><form class="login" id="lf">
-    <svg viewBox="0 0 300 70" width="100%" aria-hidden="true">${[...Array(25)].map((_, i) => `<rect x="${112 + (i % 5) * 16}" y="${3 + Math.floor(i / 5) * 13}" width="9" height="9" rx="2" fill="${"0101001010000001000101110"[i] === "1" ? "#ff3b2f" : "#3a1714"}"/>`).join("")}</svg>
+    <div class="loginboard">${photoBoard("01010 01010 00000 10001 01110", { label: "A real micro:bit with a smiley face lit" })}</div>
     <h1>micro:bit Maker Quest</h1>
     <p>Sign in with the username and password your teacher gave you. PyQuest students use the same login.</p>
     <label class="f">Username<input class="t" id="un" autocomplete="username" autocapitalize="none" spellcheck="false" required></label>
@@ -94,7 +94,9 @@ function pageLogin(msg = "") {
     <div class="err" id="le" role="alert">${esc(msg)}</div>
     <button class="cbtn" type="submit">Sign in</button>
     <p class="lnote">Teachers: sign in with your PyQuest teacher account to open the Maker Quest dashboard.</p>
+    <p class="lnote">${photoCredit()}</p>
   </form></div>`;
+  watchPhoto(app);
   $("lf").onsubmit = async (e) => {
     e.preventDefault();
     $("le").textContent = "";
@@ -137,7 +139,7 @@ async function pageStudent(me) {
   <nav class="strip" id="strip" aria-label="Worlds"></nav>
   <main class="band main">
     <aside class="side">
-      <svg class="board" id="board" viewBox="0 0 300 250" role="img" aria-label="micro:bit showing this world's icon. Press A or B to change world."></svg>
+      <div class="boardwrap"><div id="board" class="boardbox"></div><p class="boardcap" id="boardcap"></p></div>
       ${linkPanelHTML()}
       <div class="badges" id="notesbox" hidden></div>
       <div class="badges"><h3>Class board this week</h3><ol class="board-list" id="cboard"><li><span></span><span></span><span class="pts">Loading…</span></li></ol></div>
@@ -172,8 +174,59 @@ async function loadBoard() {
   } catch {}
 }
 
+// ---------- the real micro:bit ----------
+// A photo of a real micro:bit (front, LEDs off). Lit LEDs are drawn exactly over the photo's own LEDs,
+// so the board shows each world's icon, scrolls and button presses on real hardware.
+const PHOTO = {
+  src: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/59/Microbit.jpg/960px-Microbit.jpg",
+  page: "https://commons.wikimedia.org/wiki/File:Microbit.jpg",
+  credit: "Photo: Adelaidev2008t, CC BY-SA 4.0, via Wikimedia Commons",
+  license: "https://creativecommons.org/licenses/by-sa/4.0/",
+  // Measured in the 960×720 photo: corner LEDs, row spacing (perspective), buttons, board outline.
+  tl: [410.4, 267.6], tr: [539.2, 274], bl: [402.4, 394.8], br: [536, 399.6], rows: [0, 0.236, 0.484, 0.733, 1],
+  a: [302, 308], b: [642, 324], view: "252 154 446 358",
+  outline: "279,166 661,180 672,183 679,190 681,205 687,499 264,489 263,470 270,220",
+};
+let photoOk = true;
+const lerp = (p, q, t) => [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t];
+const ledAt = (r, c) => { const u = c / 4, v = PHOTO.rows[r]; return lerp(lerp(PHOTO.tl, PHOTO.tr, u), lerp(PHOTO.bl, PHOTO.br, u), v); };
+let photoSeq = 0;
+// The photo with the given 5×5 pattern lit. ids: give the A/B buttons ids (clickable) on the main board.
+function photoBoard(icon, { ids = false, label = "micro:bit" } = {}) {
+  const k = "pb" + ++photoSeq, bits = icon.replace(/ /g, "");
+  let leds = "";
+  for (let r = 0; r < 5; r++) for (let c = 0; c < 5; c++) if (bits[r * 5 + c] === "1") {
+    const [x, y] = ledAt(r, c);
+    leds += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="15" fill="#ff2d1a" opacity=".42" filter="url(#${k}g)"/><rect class="lit" x="${(x - 4).toFixed(1)}" y="${(y - 7).toFixed(1)}" width="8" height="14" rx="2" fill="#ff4a30"/><rect x="${(x - 2).toFixed(1)}" y="${(y - 5).toFixed(1)}" width="4" height="10" rx="1.5" fill="#ffd2c4" opacity=".85"/>`;
+  }
+  const btn = (p, id) => `<circle ${ids ? `id="${id}"` : ""} cx="${p[0]}" cy="${p[1]}" r="30" fill="transparent" stroke="transparent" stroke-width="4" ${ids ? 'style="cursor:pointer"' : ""}/>`;
+  return `<svg class="photo" viewBox="${PHOTO.view}" role="img" aria-label="${esc(label)}" preserveAspectRatio="xMidYMid meet">
+    <defs><clipPath id="${k}c"><polygon points="${PHOTO.outline}"/></clipPath><filter id="${k}g" x="-1" y="-1" width="3" height="3"><feGaussianBlur stdDeviation="6"/></filter></defs>
+    <polygon points="${PHOTO.outline}" fill="#000" opacity=".5" transform="translate(6 10)" filter="url(#${k}g)"/>
+    <image href="${PHOTO.src}" x="0" y="0" width="960" height="720" clip-path="url(#${k}c)" preserveAspectRatio="none"/>
+    <g class="leds">${leds}</g>${btn(PHOTO.a, "btnA")}${btn(PHOTO.b, "btnB")}</svg>`;
+}
+const photoCredit = () => `<a class="credit" href="${PHOTO.page}" target="_blank" rel="noopener">${esc(PHOTO.credit)}</a>`;
+// If the photo can't load (offline, blocked network), fall back to the drawn board everywhere.
+function watchPhoto(root) { root?.querySelectorAll("svg.photo image").forEach((img) => img.addEventListener("error", () => { if (!photoOk) return; photoOk = false; if (ME && $("board")) board(stopIcon(curStop()), false); }, { once: true })); }
+
 function board(icon, flash) {
-  const s = $("board"); if (!s) return;
+  if (photoOk) {
+    const s = $("board"); if (!s) return;
+    const st = curStop();
+    s.innerHTML = photoBoard(icon, { ids: true, label: "A real micro:bit showing " + (st.kind === "w" ? "World " + st.w.n : "Boss " + st.b.n) + "'s icon. Press A or B to change." });
+    const cap = $("boardcap"); if (cap) cap.innerHTML = `<b>${st.kind === "w" ? "World " + st.w.n : "Boss " + st.b.n}</b> · press A or B to move · ${photoCredit()}`;
+    s.classList.remove("flash"); if (flash) { void s.getBoundingClientRect(); s.classList.add("flash"); }
+    $("btnA").onclick = () => go(UI.cur - 1); $("btnB").onclick = () => go(UI.cur + 1);
+    watchPhoto(s); paintBtns();
+    return;
+  }
+  drawnBoard(icon, flash);
+}
+function drawnBoard(icon, flash) {
+  const host = $("board"); if (!host) return;
+  host.innerHTML = '<svg class="board" viewBox="0 0 300 250" role="img" aria-label="micro:bit showing this world\'s icon. Press A or B to change world."></svg>';
+  const s = host.firstChild;
   const bits = icon.replace(/ /g, ""); let leds = "";
   for (let r = 0; r < 5; r++) for (let c = 0; c < 5; c++) leds += `<rect class="${bits[r * 5 + c] === "1" ? "lit" : "unlit"}" x="${103 + c * 20}" y="${50 + r * 20}" width="10" height="10" rx="2"/>`;
   let pads = ""; for (let i = 0; i < 5; i++) { const x = 34 + i * 52; pads += `<rect x="${x}" y="204" width="${i % 2 ? 18 : 34}" height="34" rx="3" fill="url(#gold)"/>`; }
@@ -247,7 +300,7 @@ function bossView(b) {
   const hp = beaten ? 0 : Math.max(0, 100 - (st.best != null ? (70 * st.best) / st.total : 0) - (buildDone ? 30 : 0));
   UI.ans ||= {}; const ans = (UI.ans[b.id] ||= []);
   $("world").innerHTML = `<div class="wh"><h2>Boss ${b.n}: ${esc(b.name)}</h2><p class="orig">Test on Worlds ${b.worlds[0]}–${b.worlds.at(-1)} · a full class period${day ? " · boss day " + esc(niceDate(day)) : ""} · +${BOSS_XP} XP and a badge</p></div>
-  <div class="bossbar"><svg viewBox="0 0 60 60" width="64" height="64" aria-hidden="true">${[...BOSS_ICON.replace(/ /g, "")].map((c, i) => `<rect x="${(i % 5) * 12 + 1}" y="${Math.floor(i / 5) * 12 + 1}" width="10" height="10" rx="2" fill="${c === "1" ? (beaten ? "#3e6b55" : "#ff3b2f") : "#3a1714"}"/>`).join("")}</svg>
+  <div class="bossbar"><div class="bossphoto">${photoBoard(BOSS_ICON, { label: "A real micro:bit showing the boss" })}</div>
     <div style="flex:1"><b>${beaten ? "Defeated!" : "Boss health"}</b><div class="xpbar" style="margin-top:6px"><i style="width:${hp}%;background:var(--led)"></i></div>
     <p class="lnote">${beaten ? "You beat this boss. Nice work, maker." : "Beat it with 70% or better on the test (9 of 12) and a finished build challenge."}</p></div></div>
   <p class="story">${esc(b.story)}</p>
@@ -262,6 +315,7 @@ function bossView(b) {
         : `<p class="lnote">The test opens with the boss.</p>`}</div></article>
   </div>`;
   $$("input[data-m]", $("world")).forEach((cb) => (cb.onchange = () => setStep(cb.dataset.m, +cb.dataset.i, cb.checked)));
+  watchPhoto($("world"));
   const f = $("bossform"); if (!f) return;
   const left = () => { const n = b.questions.filter((_, i) => ans[i] == null).length; $("qleft").textContent = n ? n + " unanswered" : "All answered"; };
   left();
@@ -347,7 +401,10 @@ function mbIcon() { if (!L.on) return; const bits = stopIcon(curStop()).replace(
 function mbScroll(t) { if (!L.on) return; const b = [...new TextEncoder().encode(String(t).slice(0, 40))]; send([SYX, 0x04, 100, ...b.flatMap((x) => [x & 0x7f, (x >> 7) & 0x7f]), END]); }
 function award(key) { const stop = curStop(); if (stop.kind !== "w") return; const w = stop.w; const m = w.m.find((x) => x.t === "h"); if (!m || locked(w)) return; const i = m.keys.indexOf(key); if (i < 0 || ck(m.id, i)) return; setStep(m.id, i, true); }
 function note(t, err) { const n = $("lnote"); if (!n) return; n.textContent = t; n.classList.toggle("err", !!err); }
-function paintBtns() { const a = $("btnA"), b = $("btnB"); if (a) a.setAttribute("fill", L.a ? "rgba(243,207,122,.45)" : "transparent"); if (b) b.setAttribute("fill", L.b ? "rgba(243,207,122,.45)" : "transparent"); }
+function paintBtns() {
+  const a = $("btnA"), b = $("btnB"), photo = !!a?.closest("svg.photo");
+  for (const [el, on] of [[a, L.a], [b, L.b]]) { if (!el) continue; if (photo) { el.setAttribute("stroke", on ? "#f3cf7a" : "transparent"); el.setAttribute("fill", on ? "rgba(243,207,122,.25)" : "transparent"); } else el.setAttribute("fill", on ? "rgba(243,207,122,.45)" : "transparent"); }
+}
 function showRead() {
   if (!$("rA")) return;
   $("rA").classList.toggle("hot", L.a); $("rA").firstChild.textContent = L.a ? "down" : "up"; $("rB").classList.toggle("hot", L.b); $("rB").firstChild.textContent = L.b ? "down" : "up";
