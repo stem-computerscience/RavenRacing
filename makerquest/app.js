@@ -136,7 +136,7 @@ async function pageStudent(me) {
     <div class="xpnote" id="xpnote"></div>
     <div class="pacebar" id="pacebar" hidden></div>
   </header>
-  <section class="space"><div class="sectors" id="sectors" role="tablist" aria-label="Star systems"></div><div class="mapwrap" id="strip"></div></section>
+  <section class="space"><div class="sectors" id="sectors" role="tablist" aria-label="Star systems"></div><div class="mapwrap" id="strip"></div><nav class="hop" id="hop" aria-label="Move between planets"></nav></section>
   <main class="band main">
     <aside class="side">
       <div class="boardwrap"><div id="board" class="boardbox"></div><p class="boardcap" id="boardcap"></p></div>
@@ -336,7 +336,19 @@ function mapSVG(si) {
     <path d="${d}" fill="none" stroke="${sec.glow}" stroke-opacity=".8" stroke-width="5" stroke-dasharray="2 14" stroke-linecap="round"/>
     ${nodes}${boss}</svg>`;
 }
+const stopName = (st) => (st.kind === "w" ? `World ${st.w.n}: ${st.w.g}` : `Boss ${st.b.n}: ${st.b.name}`);
+// Previous / next buttons: under the map, and again at the end of each planet's missions.
+function hopHTML(where) {
+  const k = UI.cur, prev = STOPS[k - 1], next = STOPS[k + 1];
+  return `<button class="hopbtn" type="button" data-hop="-1"${prev ? "" : " disabled"} aria-label="${prev ? "Go to " + esc(stopName(prev)) : "This is the first planet"}"><span class="arr">←</span><span><small>Previous ${prev?.kind === "b" ? "boss" : "planet"}</small><b>${prev ? esc(stopName(prev)) : "Start of the quest"}</b></span></button>
+    ${where === "map" ? `<span class="hopnow">You're on <b>${esc(stopName(STOPS[k]))}</b> · ${k + 1} of ${STOPS.length}</span>` : ""}
+    <button class="hopbtn next" type="button" data-hop="1"${next ? "" : " disabled"} aria-label="${next ? "Go to " + esc(stopName(next)) : "This is the last stop"}"><span><small>Next ${next?.kind === "b" ? "boss" : "planet"}</small><b>${next ? esc(stopName(next)) : "End of the quest"}</b></span><span class="arr">→</span></button>`;
+}
+function wireHop(el, scroll) {
+  $$("[data-hop]", el).forEach((b) => (b.onclick = () => { go(UI.cur + +b.dataset.hop); if (scroll) $("world").scrollIntoView({ behavior: "smooth", block: "start" }); }));
+}
 function strip() {
+  $("hop").innerHTML = hopHTML("map"); wireHop($("hop"), false);
   const si = UI.sector ?? sectorOf(UI.cur);
   $("sectors").innerHTML = SECTORS.map((sec, i) => {
     const ws = sec.b.worlds.map((n) => W[n]), cleared = ws.filter((w) => wDone(w)).length, beat = bossDefeated(ME.progress, sec.b.id);
@@ -407,7 +419,9 @@ function bossView(b) {
           <div class="row"><button class="cbtn" type="submit">Submit test</button><span class="lnote" id="qleft"></span></div></form>`
         : st.attempts ? `<p>${st.best / st.total >= 0.7 ? "<b>Passed!</b>" : "<b>Not passed yet.</b> Ask your teacher about a retake."} Your last try: ${st.last ?? st.best}/${st.total}.</p><ol class="qres">${b.questions.map((q, i) => `<li class="${st.correct[i] ? "ok" : "no"}">${st.correct[i] ? "✓" : "✗"} ${esc(q[0])}</li>`).join("")}</ol>`
         : `<p class="lnote">The test opens with the boss.</p>`}</div></article>
-  </div>`;
+  </div>
+  <nav class="hop hopend" aria-label="Move between planets">${hopHTML("end")}</nav>`;
+  wireHop($("world"), true);
   $$("input[data-m]", $("world")).forEach((cb) => (cb.onchange = () => setStep(cb.dataset.m, +cb.dataset.i, cb.checked)));
   watchPhoto($("world"));
   const f = $("bossform"); if (!f) return;
@@ -438,7 +452,9 @@ function world() {
   ${locked(w) ? `<p class="lockmsg">Your teacher has locked this world for now. You can read the missions, but you can't tick them off yet.</p>` : ""}
   <p class="qotd"><b>Quest question:</b> ${esc(w.q)}</p><p class="story">${fmt(w.s)}</p>
   <div class="legend">${Object.keys(TAG).map((t) => `<span class="tag ${TAG[t][0]}">${TAG[t][1]}</span>`).join("")}</div>
-  <div class="missions">${w.m.map((m, k) => mission(m, w, k)).join("")}</div>`;
+  <div class="missions">${w.m.map((m, k) => mission(m, w, k)).join("")}</div>
+  <nav class="hop hopend" aria-label="Move between planets">${hopHTML("end")}</nav>`;
+  wireHop($("world"), true);
   $$("[data-o]", $("world")).forEach((b) => (b.onclick = () => { UI.open[b.dataset.o] = !UI.open[b.dataset.o]; saveUI(); world(); }));
   $$("input[data-m]", $("world")).forEach((cb) => (cb.onchange = () => setStep(cb.dataset.m, +cb.dataset.i, cb.checked)));
 }
